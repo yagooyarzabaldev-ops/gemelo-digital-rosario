@@ -8,6 +8,17 @@ This repository contains the MVP foundation: a fixture-driven, browser-viewable 
 plus the contracts that the live ingestion pipeline will fulfil. Nothing here requires
 secrets, external API calls or a deployment to run.
 
+## Live demo
+
+Public, static, fixture-only demo (no backend, no secrets, no real data, no live claim):
+
+- **Landing:** https://yagooyarzabaldev-ops.github.io/gemelo-digital-rosario/
+- **CityPulse 4D (territorial):** https://yagooyarzabaldev-ops.github.io/gemelo-digital-rosario/apps/web/
+- **PersonaTwin (self-verification, mock):** https://yagooyarzabaldev-ops.github.io/gemelo-digital-rosario/apps/web/verify/
+
+Served via GitHub Pages from the repository root. The fixture-mode / demo banners stay visible
+throughout — everything you see is deterministic sample data.
+
 ## Quick start (fixture mode)
 
 Requires Node.js (any recent version; no npm packages needed).

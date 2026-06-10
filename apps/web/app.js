@@ -55,10 +55,12 @@ const CITIES = [
 const state = {
   snapshot: null,
   enabled: new Set(Object.keys(LAYER_STYLE)),
-  timeSteps: [],
-  timeIndex: 0,
-  selected: null, // { layerId, featureId }
-  hitTargets: [], // recomputed on every frame
+  timeSteps: [],      // discrete step timestamps, used for tick marks
+  timeStart: 0,
+  timeEnd: 0,
+  timeFrac: 1,        // 0..1 continuous position within the time range
+  selected: null,     // { layerId, featureId }
+  hitTargets: [],     // recomputed on every frame
   playTimer: null,
 };
 
@@ -105,10 +107,15 @@ function buildTimeSteps() {
     steps.push(t);
   }
   state.timeSteps = steps;
-  state.timeIndex = steps.length - 1; // open on the most recent step
+  state.timeStart = Date.parse(start);
+  state.timeEnd = Date.parse(end);
+  state.timeFrac = 1; // open at the most recent moment
+  // High-resolution slider so the timeline scrubs continuously between steps.
   const slider = $("time-slider");
-  slider.max = String(steps.length - 1);
-  slider.value = String(state.timeIndex);
+  slider.min = "0";
+  slider.max = "1000";
+  slider.step = "1";
+  slider.value = "1000";
 }
 
 /* ================= header / panels ================= */
@@ -198,7 +205,7 @@ function renderLegend() {
 function bindTimebar() {
   const slider = $("time-slider");
   slider.addEventListener("input", () => {
-    state.timeIndex = Number(slider.value);
+    state.timeFrac = Number(slider.value) / 1000;
     stopPlayback();
     refreshPanels();
   });
@@ -214,11 +221,13 @@ function bindTimebar() {
 
 function startPlayback() {
   $("play-btn").textContent = "⏸";
+  // Advance the continuous fraction for a smooth sweep (~15s end to end).
   state.playTimer = setInterval(() => {
-    state.timeIndex = (state.timeIndex + 1) % state.timeSteps.length;
-    $("time-slider").value = String(state.timeIndex);
+    state.timeFrac += 0.006;
+    if (state.timeFrac > 1) state.timeFrac = 0;
+    $("time-slider").value = String(Math.round(state.timeFrac * 1000));
     refreshPanels();
-  }, 1100);
+  }, 90);
 }
 
 function stopPlayback() {
@@ -230,12 +239,12 @@ function stopPlayback() {
 function updateTimeUI() {
   const t = currentTime();
   $("time-label").textContent = fmtTime(t);
-  const pct = state.timeSteps.length > 1
-    ? (state.timeIndex / (state.timeSteps.length - 1)) * 100
-    : 100;
-  $("time-slider").style.setProperty("--progress", pct + "%");
-  [...$("time-ticks").children].forEach((el, i) =>
-    el.classList.toggle("active", i <= state.timeIndex));
+  $("time-slider").style.setProperty("--progress", state.timeFrac * 100 + "%");
+  const span = state.timeEnd - state.timeStart || 1;
+  [...$("time-ticks").children].forEach((el, i) => {
+    const f = (state.timeSteps[i] - state.timeStart) / span;
+    el.classList.toggle("active", f <= state.timeFrac + 1e-6);
+  });
 }
 
 /* ================= projection ================= */
@@ -261,10 +270,12 @@ function makeProjector() {
 /* ================= time selection ================= */
 
 function currentTime() {
-  return state.timeSteps[state.timeIndex];
+  return state.timeStart + state.timeFrac * (state.timeEnd - state.timeStart);
 }
 
-// Returns the observation a feature should show at time t, or null.
+const round1 = (x) => Math.round(x * 10) / 10;
+
+// Discrete at-or-before observation (used for event layers).
 function observationAt(feature, layerKind, t) {
   if (layerKind === "static") return feature.observations[0] ?? null;
   let best = null;
@@ -273,6 +284,31 @@ function observationAt(feature, layerKind, t) {
     if (ot <= t && (!best || ot > Date.parse(best.observed_at))) best = obs;
   }
   return best;
+}
+
+// Value a feature shows at continuous time t. Timeseries layers (weather, air
+// quality) linearly interpolate numeric fields between bracketing observations
+// so the map and KPIs change smoothly while scrubbing/playing. Events and
+// static layers stay discrete.
+function valueAt(feature, kind, t) {
+  if (kind !== "timeseries") return observationAt(feature, kind, t);
+  const obs = feature.observations;
+  if (!obs.length) return null;
+  const times = obs.map((o) => Date.parse(o.observed_at));
+  if (t <= times[0]) return obs[0];
+  if (t >= times[times.length - 1]) return obs[obs.length - 1];
+  let i = 0;
+  while (i < times.length - 1 && times[i + 1] < t) i++;
+  const a = obs[i], b = obs[i + 1];
+  const f = (t - times[i]) / (times[i + 1] - times[i]);
+  const values = {};
+  for (const k of Object.keys(a.values)) {
+    const av = a.values[k], bv = b.values?.[k];
+    values[k] = (typeof av === "number" && typeof bv === "number")
+      ? round1(av + (bv - av) * f)
+      : av;
+  }
+  return { observed_at: new Date(t).toISOString().replace(/\.\d{3}Z$/, "Z"), values, interpolated: true };
 }
 
 /* ================= render loop ================= */
@@ -291,9 +327,12 @@ function resizeCanvas() {
 
 // DOM panels that depend on the selected time or selection.
 function refreshPanels() {
+  const t = currentTime();
   updateTimeUI();
-  renderEmptyNotes(currentTime());
-  renderInspector(currentTime());
+  renderKpis(t);
+  renderAlerts(t);
+  renderEmptyNotes(t);
+  renderInspector(t);
 }
 
 function drawCanvas(nowMs) {
@@ -424,7 +463,7 @@ function drawLayers(project, t, nowMs) {
     const style = LAYER_STYLE[layerId] ?? { color: "#8c9cc0", shape: "circle" };
     let i = 0;
     for (const feature of layer.features) {
-      const obs = observationAt(feature, layer.kind, t);
+      const obs = valueAt(feature, layer.kind, t);
       if (!obs) continue; // nothing to show at/before this time
       const [x, y] = project(feature.lon, feature.lat);
       const age = t - Date.parse(obs.observed_at);
@@ -625,22 +664,140 @@ function renderEmptyNotes(t) {
   }
 }
 
+/* ================= KPI summary strip ================= */
+
+function renderKpis(t) {
+  const L = state.snapshot.layers;
+  const wx = L.weather.features.map((f) => valueAt(f, "timeseries", t)).filter(Boolean);
+  const avgTemp = wx.length ? round1(wx.reduce((a, o) => a + o.values.temperature_c, 0) / wx.length) : null;
+
+  const aq = L.air_quality.features.map((f) => valueAt(f, "timeseries", t)).filter(Boolean);
+  let worst = null;
+  for (const o of aq) if (!worst || o.values.pm2_5_ugm3 > worst.pm2_5_ugm3) worst = o.values;
+  const aqColor = worst ? (AQ_CATEGORY_COLORS[worst.category] ?? "#34d399") : "#34d399";
+
+  const fires = L.fires.features.filter((f) => valueAt(f, "events", t)).length;
+  const quakes = L.earthquakes.features.filter((f) => valueAt(f, "events", t)).length;
+
+  let ok = 0, stale = 0, error = 0;
+  for (const layer of Object.values(L)) {
+    if (layer.status === "error") error++;
+    else if (layer.status === "stale") stale++;
+    else ok++;
+  }
+  const alertCount = computeAlerts().filter((a) => a.sev === "error" || a.sev === "stale").length;
+
+  const kpi = (cls, color, icon, label, value) =>
+    `<div class="kpi ${cls}" style="--c:${color}"><span class="kpi-icon">${icon}</span>` +
+    `<span class="kpi-body"><span class="kpi-label">${esc(label)}</span><span class="kpi-value">${value}</span></span></div>`;
+
+  $("map-kpis").innerHTML =
+    kpi(alertCount > 0 ? "alert" : "calm", alertCount > 0 ? "#fb7185" : "#34d399",
+      alertCount > 0 ? "!" : "✓", "Alertas", alertCount) +
+    kpi("", "#8fb4d9", "▦", "Capas", `${ok}<small> ok · ${stale} stale · ${error} err</small>`) +
+    kpi("", "#4fd2ff", "●", "Temp prom", avgTemp != null ? `${avgTemp}<small> °C</small>` : "—") +
+    kpi("", aqColor, "■", "PM2.5 máx", worst ? `${worst.pm2_5_ugm3}<small> µg/m³</small>` : "—") +
+    kpi("", "#fb923c", "▲", "Incendios", fires) +
+    kpi("", "#fb7185", "◎", "Sismos", quakes);
+}
+
+/* ================= alerts panel ================= */
+
+// Synthesizes stale/error/empty conditions across layers and sources into a
+// single, de-duplicated list. Shared by the KPI strip and the alerts panel.
+function computeAlerts() {
+  const out = [];
+  const flaggedSources = new Set();
+  for (const layer of Object.values(state.snapshot.layers)) {
+    if (layer.status === "error") {
+      out.push({ sev: "error", ico: "⚠", title: layer.label, msg: "Fuente con error — sin datos confiables para mostrar." });
+      flaggedSources.add(layer.source_id);
+    } else if (layer.status === "stale") {
+      out.push({ sev: "stale", ico: "🕒", title: layer.label, msg: `Datos vencidos desde ${fmtTime(Date.parse(layer.last_updated))}.` });
+      flaggedSources.add(layer.source_id);
+    } else if (layer.status === "ok_empty") {
+      out.push({ sev: "info", ico: "∅", title: layer.label, msg: "Sin eventos en la ventana — estado válido (fuente OK)." });
+    }
+  }
+  for (const s of state.snapshot.source_status) {
+    if (flaggedSources.has(s.source_id)) continue;
+    if (s.status === "error") out.push({ sev: "error", ico: "⚠", title: s.name, msg: s.last_error ?? "Fuente caída." });
+    else if (s.status === "stale") out.push({ sev: "stale", ico: "🕒", title: s.name, msg: "Fuera de la ventana de frescura." });
+  }
+  return out;
+}
+
+function renderAlerts() {
+  const host = $("alerts-panel");
+  const alerts = computeAlerts();
+  if (!alerts.length) {
+    host.innerHTML = alertCard({ sev: "ok", ico: "✓", title: "Sin alertas activas", msg: "Todas las capas y fuentes están saludables." });
+    return;
+  }
+  host.innerHTML = alerts.map(alertCard).join("");
+}
+
+function alertCard(a) {
+  return `<li class="alert-card sev-${esc(a.sev)}"><span class="alert-ico">${a.ico}</span>` +
+    `<span class="alert-body"><span class="alert-title">${esc(a.title)}</span>` +
+    `<span class="alert-msg">${esc(a.msg)}</span></span></li>`;
+}
+
 /* ================= inspector ================= */
 
 function bindCanvas() {
   canvas.addEventListener("click", (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    let best = null;
-    let bestDist = 16; // px tolerance
-    for (const h2 of state.hitTargets) {
-      const d = Math.hypot(h2.x - mx, h2.y - my) - h2.r;
-      if (d < bestDist) { bestDist = d; best = h2; }
-    }
-    state.selected = best ? { layerId: best.layerId, featureId: best.feature.id } : null;
+    const hit = hitTest(e);
+    state.selected = hit ? { layerId: hit.layerId, featureId: hit.feature.id } : null;
     refreshPanels();
   });
+
+  // Hover tooltip
+  const tip = $("map-tooltip");
+  canvas.addEventListener("mousemove", (e) => {
+    const hit = hitTest(e);
+    if (hit) {
+      canvas.style.cursor = "pointer";
+      tip.hidden = false;
+      tip.style.left = hit.x + "px";
+      tip.style.top = hit.y + "px";
+      tip.innerHTML = tooltipHtml(hit);
+    } else {
+      canvas.style.cursor = "crosshair";
+      tip.hidden = true;
+    }
+  });
+  canvas.addEventListener("mouseleave", () => { tip.hidden = true; });
+}
+
+// Nearest hit target under the pointer, or null.
+function hitTest(e) {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  let best = null;
+  let bestDist = 16; // px tolerance
+  for (const h of state.hitTargets) {
+    const d = Math.hypot(h.x - mx, h.y - my) - h.r;
+    if (d < bestDist) { bestDist = d; best = h; }
+  }
+  return best;
+}
+
+function tooltipHtml(h) {
+  const style = LAYER_STYLE[h.layerId] ?? { color: "#8c9cc0" };
+  const v = h.obs?.values ?? {};
+  let metric = "";
+  switch (h.layerId) {
+    case "weather": metric = `${v.temperature_c}°C · viento ${v.wind_speed_kmh} km/h`; break;
+    case "air_quality": metric = `PM2.5 ${v.pm2_5_ugm3} µg/m³ · ${String(v.category).replace(/_/g, " ")}`; break;
+    case "fires": metric = `FRP ${v.frp_mw} MW · ${v.confidence}`; break;
+    case "earthquakes": metric = `M ${v.magnitude} · ${v.depth_km} km`; break;
+    case "pois": metric = String(v.category ?? ""); break;
+  }
+  return `<div class="tt-layer" style="--c:${style.color}">${esc(h.layerId.replace("_", " "))}</div>` +
+    `<div class="tt-name">${esc(h.feature.name)}</div>` +
+    (metric ? `<div class="tt-val">${esc(metric)}</div>` : "");
 }
 
 function findSelected() {
@@ -659,7 +816,7 @@ function renderInspector(t) {
   }
   const { layer, layerId, feature } = sel;
   const style = LAYER_STYLE[layerId] ?? { color: "#8c9cc0", glyph: "●" };
-  const obs = observationAt(feature, layer.kind, t);
+  const obs = valueAt(feature, layer.kind, t);
   const src = state.snapshot.source_status.find((s) => s.source_id === layer.source_id);
 
   let html =
@@ -677,7 +834,10 @@ function renderInspector(t) {
       html += `<div class="kv-row"><dt>${esc(prettifyKey(k))}</dt><dd>${esc(String(v))}</dd></div>`;
     }
     html += `</dl>`;
-    html += `<div class="ins-footer">Observed ${fmtTime(Date.parse(obs.observed_at))}` +
+    const stamp = obs.interpolated
+      ? `Interpolated at ${fmtTime(currentTime())}`
+      : `Observed ${fmtTime(Date.parse(obs.observed_at))}`;
+    html += `<div class="ins-footer">${stamp}` +
       (src ? `<br>Source: ${esc(src.name)}${src.license ? ` · ${esc(src.license)}` : ""}` : "") +
       `</div>`;
   } else {
@@ -695,13 +855,13 @@ function renderInspector(t) {
 function regionalOverviewHtml(t) {
   const L = state.snapshot.layers;
   const obsOf = (layer) =>
-    layer.features.map((f) => observationAt(f, layer.kind, t)).filter(Boolean);
+    layer.features.map((f) => valueAt(f, layer.kind, t)).filter(Boolean);
 
   const wx = obsOf(L.weather);
   const avgTemp = wx.length
     ? (wx.reduce((a, o) => a + o.values.temperature_c, 0) / wx.length).toFixed(1)
     : null;
-  const maxWind = wx.length ? Math.max(...wx.map((o) => o.values.wind_speed_kmh)) : null;
+  const maxWind = wx.length ? round1(Math.max(...wx.map((o) => o.values.wind_speed_kmh))) : null;
 
   const aq = obsOf(L.air_quality);
   let worstAq = null;
@@ -709,13 +869,13 @@ function regionalOverviewHtml(t) {
     if (!worstAq || o.values.pm2_5_ugm3 > worstAq.pm2_5_ugm3) worstAq = o.values;
   }
 
-  const fires = L.fires.features.filter((f) => observationAt(f, "events", t));
+  const fires = L.fires.features.filter((f) => valueAt(f, "events", t));
   const totalFrp = fires.reduce((a, f) => {
-    const o = observationAt(f, "events", t);
+    const o = valueAt(f, "events", t);
     return a + (o?.values.frp_mw ?? 0);
   }, 0);
 
-  const quakes = L.earthquakes.features.filter((f) => observationAt(f, "events", t)).length;
+  const quakes = L.earthquakes.features.filter((f) => valueAt(f, "events", t)).length;
   const pois = L.pois.features.length;
 
   const stat = (layerId, label, value, sub) => {

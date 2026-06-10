@@ -23,6 +23,10 @@
   <main class="layout">
     <aside class="panel sidebar-left">
       <section class="panel-block">
+        <h2>Alerts</h2>
+        <ul id="alerts-panel" class="alerts-list"></ul>
+      </section>
+      <section class="panel-block">
         <h2>Data layers</h2>
         <ul id="layer-toggles" class="layer-list"></ul>
       </section>
@@ -34,6 +38,8 @@
 
     <section class="map-wrap">
       <canvas id="map"></canvas>
+      <div id="map-kpis" class="map-kpis"></div>
+      <div id="map-tooltip" class="map-tooltip" hidden></div>
       <div id="map-empty-notes" class="map-empty-notes"></div>
       <div id="map-legend" class="map-legend"></div>
       <div id="map-attribution" class="map-attribution"></div>

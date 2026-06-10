@@ -1,0 +1,159 @@
+{
+  "name": "[TEMPLATE] DT Ingest — USGS earthquakes",
+  "meta": {
+    "templateNote": "Template/spec only — import into n8n, attach your own local Postgres credential, then activate. Contains no credentials or secrets. USGS feeds require no API key.",
+    "writesTo": ["digital_twin.ingestion_runs", "digital_twin.observations"],
+    "sourceIds": ["usgs-earthquakes"]
+  },
+  "nodes": [
+    {
+      "id": "note-1",
+      "name": "How this template works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, -260],
+      "parameters": {
+        "content": "TEMPLATE — USGS earthquake ingestion\n\n1. Runs hourly against the public 'all_day' GeoJSON feed (no key needed).\n2. Filters events to the regional bounding box around Rosario / Gran Rosario / Paraná corridor / Villa Constitución, widened because significant quakes are regional events.\n3. Zero matching events is NORMAL for this region — the run is still recorded as success with records_ingested = 0, which the publish workflow turns into the layer's 'ok_empty' state. Never fabricate events.\n4. Upserts use the USGS event id as external_ref, so re-runs are idempotent.\n\nBefore activating: attach your own Postgres credential on every Postgres node."
+      }
+    },
+    {
+      "id": "trigger-1",
+      "name": "Every hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+      }
+    },
+    {
+      "id": "pg-open-run",
+      "name": "Open ingestion run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [200, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO digital_twin.ingestion_runs (source_id, run_key, status)\nVALUES ('usgs-earthquakes', $1, 'running')\nON CONFLICT (source_id, run_key) DO UPDATE SET status = 'running', error_message = NULL;",
+        "options": { "queryReplacement": "={{ $execution.id }}" }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "http-usgs",
+      "name": "Fetch USGS all_day feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 0],
+      "parameters": {
+        "url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson",
+        "options": { "timeout": 20000 }
+      }
+    },
+    {
+      "id": "code-filter",
+      "name": "Filter to region + map rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [620, 0],
+      "parameters": {
+        "jsCode": "// Regional bbox, widened ~3° beyond the visual bbox because earthquakes\n// relevant to the corridor originate well outside city limits.\nconst BBOX = { west: -64.0, south: -36.5, east: -57.0, north: -29.5 };\nconst fc = $input.first().json;\nconst rows = [];\nfor (const f of fc.features ?? []) {\n  const [lon, lat, depthKm] = f.geometry.coordinates;\n  if (lon < BBOX.west || lon > BBOX.east || lat < BBOX.south || lat > BBOX.north) continue;\n  rows.push({\n    source_id: 'usgs-earthquakes',\n    layer: 'earthquakes',\n    external_ref: f.id,\n    observed_at: new Date(f.properties.time).toISOString(),\n    lon, lat,\n    name: f.properties.place ?? 'Earthquake',\n    values: { magnitude: f.properties.mag, depth_km: depthKm, place: f.properties.place },\n    run_key: $execution.id,\n  });\n}\n// IMPORTANT: an empty result is a valid, expected outcome for this region.\nreturn rows.length ? rows.map(r => ({ json: r })) : [{ json: { empty: true, run_key: $execution.id } }];"
+      }
+    },
+    {
+      "id": "if-empty",
+      "name": "Any events?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [840, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.empty ?? false }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "pg-upsert",
+      "name": "Upsert observation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1060, -100],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO digital_twin.observations (source_id, layer, external_ref, observed_at, lon, lat, values)\nVALUES ($1, $2, $3, $4::timestamptz, $5, $6, $7::jsonb)\nON CONFLICT (source_id, layer, external_ref, observed_at) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ $json.source_id }},{{ $json.layer }},{{ $json.external_ref }},{{ $json.observed_at }},{{ $json.lon }},{{ $json.lat }},{{ JSON.stringify($json.values) }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "pg-close-run",
+      "name": "Close run (success)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1280, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE digital_twin.ingestion_runs\nSET status = 'success', finished_at = now(),\n    records_ingested = (SELECT count(*) FROM digital_twin.observations o\n                        WHERE o.source_id = 'usgs-earthquakes' AND o.created_at >= ingestion_runs.started_at)\nWHERE source_id = 'usgs-earthquakes' AND run_key = $1;",
+        "options": { "queryReplacement": "={{ $json.run_key }}" }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "err-trigger",
+      "name": "On workflow error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {}
+    },
+    {
+      "id": "pg-close-error",
+      "name": "Close run (error)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [420, 300],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE digital_twin.ingestion_runs\nSET status = 'error', finished_at = now(), error_message = $2\nWHERE source_id = 'usgs-earthquakes' AND run_key = $1;",
+        "options": {
+          "queryReplacement": "={{ $json.execution.id }},{{ $json.execution.error.message }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    }
+  ],
+  "connections": {
+    "Every hour": { "main": [[{ "node": "Open ingestion run", "type": "main", "index": 0 }]] },
+    "Open ingestion run": { "main": [[{ "node": "Fetch USGS all_day feed", "type": "main", "index": 0 }]] },
+    "Fetch USGS all_day feed": { "main": [[{ "node": "Filter to region + map rows", "type": "main", "index": 0 }]] },
+    "Filter to region + map rows": { "main": [[{ "node": "Any events?", "type": "main", "index": 0 }]] },
+    "Any events?": {
+      "main": [
+        [{ "node": "Upsert observation", "type": "main", "index": 0 }],
+        [{ "node": "Close run (success)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Upsert observation": { "main": [[{ "node": "Close run (success)", "type": "main", "index": 0 }]] },
+    "On workflow error": { "main": [[{ "node": "Close run (error)", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

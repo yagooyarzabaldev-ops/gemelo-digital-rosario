@@ -1,0 +1,1125 @@
+{
+  "contract": "layer-snapshot",
+  "contract_version": "1.0.0",
+  "snapshot_id": "fixture-rosario-2026-06-09",
+  "generated_at": "2026-06-09T22:00:00Z",
+  "mode": "fixture",
+  "disclaimer": "Sample fixture data for local development. Values are synthetic and deterministic. This is NOT live data.",
+  "region": {
+    "name": "Rosario / Gran Rosario / Paraná corridor / Villa Constitución",
+    "bbox": [
+      -60.95,
+      -33.35,
+      -60.2,
+      -32.55
+    ]
+  },
+  "time_range": {
+    "start": "2026-06-09T00:00:00Z",
+    "end": "2026-06-09T21:00:00Z",
+    "step_minutes": 180
+  },
+  "layers": {
+    "weather": {
+      "id": "weather",
+      "label": "Weather",
+      "kind": "timeseries",
+      "source_id": "open-meteo",
+      "status": "ok",
+      "last_updated": "2026-06-09T21:05:00Z",
+      "features": [
+        {
+          "id": "wx-rosario-centro",
+          "name": "Rosario Centro",
+          "lon": -60.6393,
+          "lat": -32.9468,
+          "observations": [
+            {
+              "observed_at": "2026-06-09T00:00:00Z",
+              "values": {
+                "temperature_c": 7,
+                "relative_humidity_pct": 97,
+                "wind_speed_kmh": 12.6,
+                "wind_direction_deg": 185,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T03:00:00Z",
+              "values": {
+                "temperature_c": 6.8,
+                "relative_humidity_pct": 98,
+                "wind_speed_kmh": 18,
+                "wind_direction_deg": 154,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T06:00:00Z",
+              "values": {
+                "temperature_c": 5.8,
+                "relative_humidity_pct": 104,
+                "wind_speed_kmh": 22,
+                "wind_direction_deg": 166,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T09:00:00Z",
+              "values": {
+                "temperature_c": 9.6,
+                "relative_humidity_pct": 89,
+                "wind_speed_kmh": 13.3,
+                "wind_direction_deg": 215,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T12:00:00Z",
+              "values": {
+                "temperature_c": 13.7,
+                "relative_humidity_pct": 69,
+                "wind_speed_kmh": 9.2,
+                "wind_direction_deg": 151,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T15:00:00Z",
+              "values": {
+                "temperature_c": 15.7,
+                "relative_humidity_pct": 63,
+                "wind_speed_kmh": 17.9,
+                "wind_direction_deg": 200,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T18:00:00Z",
+              "values": {
+                "temperature_c": 13.5,
+                "relative_humidity_pct": 73,
+                "wind_speed_kmh": 19.9,
+                "wind_direction_deg": 212,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T21:00:00Z",
+              "values": {
+                "temperature_c": 10,
+                "relative_humidity_pct": 82,
+                "wind_speed_kmh": 14.5,
+                "wind_direction_deg": 162,
+                "precipitation_mm": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "wx-san-lorenzo",
+          "name": "San Lorenzo",
+          "lon": -60.7333,
+          "lat": -32.7459,
+          "observations": [
+            {
+              "observed_at": "2026-06-09T00:00:00Z",
+              "values": {
+                "temperature_c": 6.6,
+                "relative_humidity_pct": 98,
+                "wind_speed_kmh": 11.2,
+                "wind_direction_deg": 173,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T03:00:00Z",
+              "values": {
+                "temperature_c": 6.1,
+                "relative_humidity_pct": 99,
+                "wind_speed_kmh": 19.8,
+                "wind_direction_deg": 204,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T06:00:00Z",
+              "values": {
+                "temperature_c": 5.4,
+                "relative_humidity_pct": 101,
+                "wind_speed_kmh": 14.5,
+                "wind_direction_deg": 192,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T09:00:00Z",
+              "values": {
+                "temperature_c": 8.9,
+                "relative_humidity_pct": 91,
+                "wind_speed_kmh": 9.2,
+                "wind_direction_deg": 143,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T12:00:00Z",
+              "values": {
+                "temperature_c": 13.2,
+                "relative_humidity_pct": 70,
+                "wind_speed_kmh": 21.1,
+                "wind_direction_deg": 219,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T15:00:00Z",
+              "values": {
+                "temperature_c": 16.1,
+                "relative_humidity_pct": 62,
+                "wind_speed_kmh": 12.5,
+                "wind_direction_deg": 169,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T18:00:00Z",
+              "values": {
+                "temperature_c": 13,
+                "relative_humidity_pct": 70,
+                "wind_speed_kmh": 10.5,
+                "wind_direction_deg": 150,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T21:00:00Z",
+              "values": {
+                "temperature_c": 9.2,
+                "relative_humidity_pct": 84,
+                "wind_speed_kmh": 15.8,
+                "wind_direction_deg": 200,
+                "precipitation_mm": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "wx-granadero-baigorria",
+          "name": "Granadero Baigorria",
+          "lon": -60.6794,
+          "lat": -32.8569,
+          "observations": [
+            {
+              "observed_at": "2026-06-09T00:00:00Z",
+              "values": {
+                "temperature_c": 7.2,
+                "relative_humidity_pct": 96,
+                "wind_speed_kmh": 13.9,
+                "wind_direction_deg": 178,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T03:00:00Z",
+              "values": {
+                "temperature_c": 6.7,
+                "relative_humidity_pct": 97,
+                "wind_speed_kmh": 8.5,
+                "wind_direction_deg": 208,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T06:00:00Z",
+              "values": {
+                "temperature_c": 5.4,
+                "relative_humidity_pct": 103,
+                "wind_speed_kmh": 9.9,
+                "wind_direction_deg": 159,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T09:00:00Z",
+              "values": {
+                "temperature_c": 8.9,
+                "relative_humidity_pct": 87,
+                "wind_speed_kmh": 18.5,
+                "wind_direction_deg": 189,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T12:00:00Z",
+              "values": {
+                "temperature_c": 13.9,
+                "relative_humidity_pct": 68,
+                "wind_speed_kmh": 21.3,
+                "wind_direction_deg": 220,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T15:00:00Z",
+              "values": {
+                "temperature_c": 15.6,
+                "relative_humidity_pct": 61,
+                "wind_speed_kmh": 12.6,
+                "wind_direction_deg": 170,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T18:00:00Z",
+              "values": {
+                "temperature_c": 13.1,
+                "relative_humidity_pct": 72,
+                "wind_speed_kmh": 18,
+                "wind_direction_deg": 151,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T21:00:00Z",
+              "values": {
+                "temperature_c": 9.3,
+                "relative_humidity_pct": 86,
+                "wind_speed_kmh": 9.3,
+                "wind_direction_deg": 201,
+                "precipitation_mm": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "wx-villa-g-galvez",
+          "name": "Villa Gobernador Gálvez",
+          "lon": -60.6044,
+          "lat": -33.0256,
+          "observations": [
+            {
+              "observed_at": "2026-06-09T00:00:00Z",
+              "values": {
+                "temperature_c": 7.7,
+                "relative_humidity_pct": 94,
+                "wind_speed_kmh": 8.3,
+                "wind_direction_deg": 146,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T03:00:00Z",
+              "values": {
+                "temperature_c": 6,
+                "relative_humidity_pct": 96,
+                "wind_speed_kmh": 16.9,
+                "wind_direction_deg": 176,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T06:00:00Z",
+              "values": {
+                "temperature_c": 5.9,
+                "relative_humidity_pct": 99,
+                "wind_speed_kmh": 18.3,
+                "wind_direction_deg": 207,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T09:00:00Z",
+              "values": {
+                "temperature_c": 9.4,
+                "relative_humidity_pct": 90,
+                "wind_speed_kmh": 12.9,
+                "wind_direction_deg": 157,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T12:00:00Z",
+              "values": {
+                "temperature_c": 13.1,
+                "relative_humidity_pct": 71,
+                "wind_speed_kmh": 15.7,
+                "wind_direction_deg": 188,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T15:00:00Z",
+              "values": {
+                "temperature_c": 16.1,
+                "relative_humidity_pct": 63,
+                "wind_speed_kmh": 21,
+                "wind_direction_deg": 218,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T18:00:00Z",
+              "values": {
+                "temperature_c": 13.5,
+                "relative_humidity_pct": 74,
+                "wind_speed_kmh": 12.4,
+                "wind_direction_deg": 199,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T21:00:00Z",
+              "values": {
+                "temperature_c": 9.8,
+                "relative_humidity_pct": 83,
+                "wind_speed_kmh": 17.7,
+                "wind_direction_deg": 169,
+                "precipitation_mm": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "wx-funes",
+          "name": "Funes",
+          "lon": -60.8103,
+          "lat": -32.9211,
+          "observations": [
+            {
+              "observed_at": "2026-06-09T00:00:00Z",
+              "values": {
+                "temperature_c": 6.4,
+                "relative_humidity_pct": 98,
+                "wind_speed_kmh": 20,
+                "wind_direction_deg": 144,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T03:00:00Z",
+              "values": {
+                "temperature_c": 6.2,
+                "relative_humidity_pct": 98,
+                "wind_speed_kmh": 11.4,
+                "wind_direction_deg": 194,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T06:00:00Z",
+              "values": {
+                "temperature_c": 5.2,
+                "relative_humidity_pct": 101,
+                "wind_speed_kmh": 16.7,
+                "wind_direction_deg": 205,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T09:00:00Z",
+              "values": {
+                "temperature_c": 8.9,
+                "relative_humidity_pct": 86,
+                "wind_speed_kmh": 8,
+                "wind_direction_deg": 174,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T12:00:00Z",
+              "values": {
+                "temperature_c": 13,
+                "relative_humidity_pct": 72,
+                "wind_speed_kmh": 16,
+                "wind_direction_deg": 182,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T15:00:00Z",
+              "values": {
+                "temperature_c": 15.1,
+                "relative_humidity_pct": 60,
+                "wind_speed_kmh": 10.7,
+                "wind_direction_deg": 152,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T18:00:00Z",
+              "values": {
+                "temperature_c": 12.8,
+                "relative_humidity_pct": 75,
+                "wind_speed_kmh": 12.7,
+                "wind_direction_deg": 171,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T21:00:00Z",
+              "values": {
+                "temperature_c": 9.4,
+                "relative_humidity_pct": 85,
+                "wind_speed_kmh": 21.4,
+                "wind_direction_deg": 201,
+                "precipitation_mm": 0
+              }
+            }
+          ]
+        },
+        {
+          "id": "wx-villa-constitucion",
+          "name": "Villa Constitución",
+          "lon": -60.3297,
+          "lat": -33.2329,
+          "observations": [
+            {
+              "observed_at": "2026-06-09T00:00:00Z",
+              "values": {
+                "temperature_c": 7.8,
+                "relative_humidity_pct": 95,
+                "wind_speed_kmh": 8.8,
+                "wind_direction_deg": 145,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T03:00:00Z",
+              "values": {
+                "temperature_c": 6.3,
+                "relative_humidity_pct": 102,
+                "wind_speed_kmh": 14.2,
+                "wind_direction_deg": 194,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T06:00:00Z",
+              "values": {
+                "temperature_c": 6.6,
+                "relative_humidity_pct": 99,
+                "wind_speed_kmh": 18.2,
+                "wind_direction_deg": 206,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T09:00:00Z",
+              "values": {
+                "temperature_c": 9.1,
+                "relative_humidity_pct": 91,
+                "wind_speed_kmh": 9.5,
+                "wind_direction_deg": 175,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T12:00:00Z",
+              "values": {
+                "temperature_c": 14.4,
+                "relative_humidity_pct": 71,
+                "wind_speed_kmh": 16.1,
+                "wind_direction_deg": 190,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T15:00:00Z",
+              "values": {
+                "temperature_c": 16.4,
+                "relative_humidity_pct": 59,
+                "wind_speed_kmh": 10.8,
+                "wind_direction_deg": 160,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T18:00:00Z",
+              "values": {
+                "temperature_c": 13,
+                "relative_humidity_pct": 74,
+                "wind_speed_kmh": 12.8,
+                "wind_direction_deg": 171,
+                "precipitation_mm": 0
+              }
+            },
+            {
+              "observed_at": "2026-06-09T21:00:00Z",
+              "values": {
+                "temperature_c": 10.7,
+                "relative_humidity_pct": 84,
+                "wind_speed_kmh": 21.5,
+                "wind_direction_deg": 202,
+                "precipitation_mm": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "air_quality": {
+      "id": "air_quality",
+      "label": "Air quality",
+      "kind": "timeseries",
+      "source_id": "open-meteo-air-quality",
+      "status": "ok",
+      "last_updated": "2026-06-09T21:05:00Z",
+      "features": [
+        {
+          "id": "aq-rosario-centro",
+          "name": "Rosario Centro",
+          "lon": -60.6505,
+          "lat": -32.9442,
+          "observations": [
+            {
+              "observed_at": "2026-06-09T00:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 16.4,
+                "pm10_ugm3": 32.7,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T03:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 15.9,
+                "pm10_ugm3": 28.7,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T06:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 14.3,
+                "pm10_ugm3": 29.3,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T09:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 20.8,
+                "pm10_ugm3": 39.1,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T12:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 23.5,
+                "pm10_ugm3": 47.1,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T15:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 20,
+                "pm10_ugm3": 38.9,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T18:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 17.4,
+                "pm10_ugm3": 32.5,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T21:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 19.9,
+                "pm10_ugm3": 40.1,
+                "category": "moderate"
+              }
+            }
+          ]
+        },
+        {
+          "id": "aq-rosario-sur",
+          "name": "Rosario Sur / VGG",
+          "lon": -60.621,
+          "lat": -33.005,
+          "observations": [
+            {
+              "observed_at": "2026-06-09T00:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 20.8,
+                "pm10_ugm3": 40.7,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T03:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 17.3,
+                "pm10_ugm3": 32.5,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T06:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 18.8,
+                "pm10_ugm3": 34.8,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T09:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 26.2,
+                "pm10_ugm3": 50,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T12:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 27.9,
+                "pm10_ugm3": 55,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T15:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 25.4,
+                "pm10_ugm3": 47.4,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T18:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 21.8,
+                "pm10_ugm3": 42.8,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T21:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 21.3,
+                "pm10_ugm3": 38.8,
+                "category": "moderate"
+              }
+            }
+          ]
+        },
+        {
+          "id": "aq-san-lorenzo",
+          "name": "Cordón industrial San Lorenzo",
+          "lon": -60.729,
+          "lat": -32.753,
+          "observations": [
+            {
+              "observed_at": "2026-06-09T00:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 25,
+                "pm10_ugm3": 48.6,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T03:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 21.5,
+                "pm10_ugm3": 40.4,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T06:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 21.1,
+                "pm10_ugm3": 40.8,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T09:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 28.6,
+                "pm10_ugm3": 56.2,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T12:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 32.1,
+                "pm10_ugm3": 61.8,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T15:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 29.6,
+                "pm10_ugm3": 54.2,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T18:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 24.2,
+                "pm10_ugm3": 44,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T21:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 27.7,
+                "pm10_ugm3": 52.2,
+                "category": "moderate"
+              }
+            }
+          ]
+        },
+        {
+          "id": "aq-villa-constitucion",
+          "name": "Villa Constitución",
+          "lon": -60.338,
+          "lat": -33.227,
+          "observations": [
+            {
+              "observed_at": "2026-06-09T00:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 19.4,
+                "pm10_ugm3": 38.9,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T03:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 14.9,
+                "pm10_ugm3": 27.7,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T06:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 13.3,
+                "pm10_ugm3": 25.9,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T09:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 23.8,
+                "pm10_ugm3": 42.9,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T12:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 26.3,
+                "pm10_ugm3": 50.5,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T15:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 22.8,
+                "pm10_ugm3": 42.3,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T18:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 20.2,
+                "pm10_ugm3": 40.7,
+                "category": "moderate"
+              }
+            },
+            {
+              "observed_at": "2026-06-09T21:00:00Z",
+              "values": {
+                "pm2_5_ugm3": 22.8,
+                "pm10_ugm3": 43.5,
+                "category": "moderate"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "fires": {
+      "id": "fires",
+      "label": "Fires / thermal anomalies",
+      "kind": "events",
+      "source_id": "nasa-firms",
+      "status": "stale",
+      "last_updated": "2026-06-08T14:30:00Z",
+      "features": [
+        {
+          "id": "fire-delta-001",
+          "name": "Thermal anomaly — Delta islands NE of Rosario",
+          "lon": -60.561,
+          "lat": -32.872,
+          "observations": [
+            {
+              "observed_at": "2026-06-09T05:42:00Z",
+              "values": {
+                "confidence": "nominal",
+                "frp_mw": 12.4,
+                "satellite": "VIIRS (sample)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "fire-delta-002",
+          "name": "Thermal anomaly — Delta islands E of VGG",
+          "lon": -60.543,
+          "lat": -33.011,
+          "observations": [
+            {
+              "observed_at": "2026-06-09T13:15:00Z",
+              "values": {
+                "confidence": "high",
+                "frp_mw": 27.9,
+                "satellite": "VIIRS (sample)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "fire-corridor-003",
+          "name": "Thermal anomaly — riverside, Paraná corridor",
+          "lon": -60.447,
+          "lat": -33.128,
+          "observations": [
+            {
+              "observed_at": "2026-06-09T17:50:00Z",
+              "values": {
+                "confidence": "low",
+                "frp_mw": 5.1,
+                "satellite": "MODIS (sample)"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "earthquakes": {
+      "id": "earthquakes",
+      "label": "Earthquakes",
+      "kind": "events",
+      "source_id": "usgs-earthquakes",
+      "status": "ok_empty",
+      "last_updated": "2026-06-09T21:00:00Z",
+      "features": []
+    },
+    "pois": {
+      "id": "pois",
+      "label": "Points of interest",
+      "kind": "static",
+      "source_id": "osm-overpass",
+      "status": "ok",
+      "last_updated": "2026-06-01T10:00:00Z",
+      "features": [
+        {
+          "id": "poi-monumento",
+          "name": "Monumento Nacional a la Bandera",
+          "lon": -60.6304,
+          "lat": -32.9479,
+          "observations": [
+            {
+              "observed_at": "2026-06-01T10:00:00Z",
+              "values": {
+                "category": "landmark",
+                "city": "Rosario"
+              }
+            }
+          ]
+        },
+        {
+          "id": "poi-puente-rv",
+          "name": "Puente Rosario–Victoria",
+          "lon": -60.595,
+          "lat": -32.885,
+          "observations": [
+            {
+              "observed_at": "2026-06-01T10:00:00Z",
+              "values": {
+                "category": "infrastructure",
+                "city": "Rosario"
+              }
+            }
+          ]
+        },
+        {
+          "id": "poi-puerto-rosario",
+          "name": "Puerto de Rosario",
+          "lon": -60.623,
+          "lat": -32.97,
+          "observations": [
+            {
+              "observed_at": "2026-06-01T10:00:00Z",
+              "values": {
+                "category": "port",
+                "city": "Rosario"
+              }
+            }
+          ]
+        },
+        {
+          "id": "poi-parque-independencia",
+          "name": "Parque de la Independencia",
+          "lon": -60.656,
+          "lat": -32.961,
+          "observations": [
+            {
+              "observed_at": "2026-06-01T10:00:00Z",
+              "values": {
+                "category": "park",
+                "city": "Rosario"
+              }
+            }
+          ]
+        },
+        {
+          "id": "poi-aeropuerto",
+          "name": "Aeropuerto Internacional Rosario",
+          "lon": -60.785,
+          "lat": -32.9036,
+          "observations": [
+            {
+              "observed_at": "2026-06-01T10:00:00Z",
+              "values": {
+                "category": "airport",
+                "city": "Rosario"
+              }
+            }
+          ]
+        },
+        {
+          "id": "poi-refineria-sl",
+          "name": "Complejo portuario San Lorenzo",
+          "lon": -60.724,
+          "lat": -32.737,
+          "observations": [
+            {
+              "observed_at": "2026-06-01T10:00:00Z",
+              "values": {
+                "category": "port",
+                "city": "San Lorenzo"
+              }
+            }
+          ]
+        },
+        {
+          "id": "poi-acindar",
+          "name": "Polo industrial Villa Constitución",
+          "lon": -60.321,
+          "lat": -33.241,
+          "observations": [
+            {
+              "observed_at": "2026-06-01T10:00:00Z",
+              "values": {
+                "category": "industry",
+                "city": "Villa Constitución"
+              }
+            }
+          ]
+        },
+        {
+          "id": "poi-estacion-fluvial",
+          "name": "Estación Fluvial Rosario",
+          "lon": -60.628,
+          "lat": -32.944,
+          "observations": [
+            {
+              "observed_at": "2026-06-01T10:00:00Z",
+              "values": {
+                "category": "transport",
+                "city": "Rosario"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "source_status": [
+    {
+      "source_id": "open-meteo",
+      "name": "Open-Meteo (weather)",
+      "url": "https://open-meteo.com/",
+      "license": "CC BY 4.0",
+      "status": "ok",
+      "mode": "fixture",
+      "last_success_at": "2026-06-09T21:05:00Z",
+      "last_error": null,
+      "note": "Fixture sample shaped like the Open-Meteo forecast API response."
+    },
+    {
+      "source_id": "open-meteo-air-quality",
+      "name": "Open-Meteo Air Quality",
+      "url": "https://open-meteo.com/en/docs/air-quality-api",
+      "license": "CC BY 4.0",
+      "status": "ok",
+      "mode": "fixture",
+      "last_success_at": "2026-06-09T21:05:00Z",
+      "last_error": null,
+      "note": "Fixture sample shaped like the Open-Meteo air quality API response."
+    },
+    {
+      "source_id": "nasa-firms",
+      "name": "NASA FIRMS (fires)",
+      "url": "https://firms.modaps.eosdis.nasa.gov/",
+      "license": "NASA open data policy",
+      "status": "stale",
+      "mode": "fixture",
+      "last_success_at": "2026-06-08T14:30:00Z",
+      "last_error": "HTTP 429 rate limited (simulated for fixture)",
+      "note": "Demonstrates the stale-source state: last successful ingestion is older than the configured freshness window."
+    },
+    {
+      "source_id": "usgs-earthquakes",
+      "name": "USGS Earthquakes GeoJSON",
+      "url": "https://earthquake.usgs.gov/earthquakes/feed/",
+      "license": "Public domain (USGS)",
+      "status": "ok",
+      "mode": "fixture",
+      "last_success_at": "2026-06-09T21:00:00Z",
+      "last_error": null,
+      "note": "Empty dataset is a valid state: no events in the region during the fixture window."
+    },
+    {
+      "source_id": "osm-overpass",
+      "name": "OpenStreetMap / Overpass (POIs)",
+      "url": "https://www.openstreetmap.org/",
+      "license": "ODbL 1.0",
+      "status": "ok",
+      "mode": "fixture",
+      "last_success_at": "2026-06-01T10:00:00Z",
+      "last_error": null,
+      "note": "Static POI extract; refreshed on demand, not on a schedule."
+    },
+    {
+      "source_id": "demo-broken-source",
+      "name": "Demo failing source",
+      "url": null,
+      "license": null,
+      "status": "error",
+      "mode": "fixture",
+      "last_success_at": null,
+      "last_error": "Connection refused (simulated for fixture)",
+      "note": "Demonstrates the hard-error source state in the freshness panel. Not a real data source."
+    }
+  ]
+}

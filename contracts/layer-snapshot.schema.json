@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yagooyarzabaldev-ops/gemelo-digital-rosario/contracts/layer-snapshot.schema.json",
+  "title": "Layer Snapshot",
+  "description": "Snapshot JSON contract consumed by the digital twin frontend. The browser only reads prepared snapshots like this one; it never polls public APIs directly.",
+  "type": "object",
+  "required": [
+    "contract",
+    "contract_version",
+    "snapshot_id",
+    "generated_at",
+    "mode",
+    "region",
+    "time_range",
+    "layers",
+    "source_status"
+  ],
+  "properties": {
+    "contract": {
+      "const": "layer-snapshot"
+    },
+    "contract_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of this contract."
+    },
+    "snapshot_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier of this snapshot. Used as the idempotency key in digital_twin.layer_snapshots."
+    },
+    "generated_at": {
+      "$ref": "#/$defs/isoTimestamp"
+    },
+    "mode": {
+      "enum": ["fixture", "live"],
+      "description": "fixture = deterministic sample data; live = produced by an ingestion pipeline. The frontend must display this mode prominently."
+    },
+    "disclaimer": {
+      "type": "string",
+      "description": "Required when mode is fixture: human-readable statement that the data is not live."
+    },
+    "region": {
+      "type": "object",
+      "required": ["name", "bbox"],
+      "properties": {
+        "name": { "type": "string" },
+        "bbox": {
+          "type": "array",
+          "description": "[west, south, east, north] in WGS84 degrees.",
+          "items": { "type": "number" },
+          "minItems": 4,
+          "maxItems": 4
+        }
+      }
+    },
+    "time_range": {
+      "type": "object",
+      "required": ["start", "end", "step_minutes"],
+      "properties": {
+        "start": { "$ref": "#/$defs/isoTimestamp" },
+        "end": { "$ref": "#/$defs/isoTimestamp" },
+        "step_minutes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "layers": {
+      "type": "object",
+      "required": ["weather", "air_quality", "fires", "earthquakes", "pois"],
+      "additionalProperties": { "$ref": "#/$defs/layer" }
+    },
+    "source_status": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/sourceStatus" }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "mode": { "const": "fixture" } } },
+      "then": { "required": ["disclaimer"] }
+    }
+  ],
+  "$defs": {
+    "isoTimestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+      "description": "UTC ISO 8601 timestamp with Z suffix."
+    },
+    "layer": {
+      "type": "object",
+      "required": ["id", "label", "kind", "source_id", "status", "last_updated", "features"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 },
+        "kind": {
+          "enum": ["timeseries", "events", "static"],
+          "description": "timeseries = features observed at every step of time_range; events = sparse point-in-time events; static = slowly changing reference data."
+        },
+        "source_id": {
+          "type": "string",
+          "description": "Must match a source_status[].source_id entry in the same snapshot."
+        },
+        "status": {
+          "enum": ["ok", "ok_empty", "stale", "error"],
+          "description": "ok_empty means the source succeeded and there is genuinely no data; the frontend must render that as an explicit empty state, not as a failure."
+        },
+        "last_updated": { "$ref": "#/$defs/isoTimestamp" },
+        "features": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/feature" }
+        }
+      }
+    },
+    "feature": {
+      "type": "object",
+      "required": ["id", "name", "lon", "lat", "observations"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "lon": { "type": "number", "minimum": -180, "maximum": 180 },
+        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+        "observations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["observed_at", "values"],
+            "properties": {
+              "observed_at": { "$ref": "#/$defs/isoTimestamp" },
+              "values": {
+                "type": "object",
+                "description": "Layer-specific measurement payload (e.g. temperature_c, pm2_5_ugm3, frp_mw)."
+              }
+            }
+          }
+        }
+      }
+    },
+    "sourceStatus": {
+      "type": "object",
+      "required": ["source_id", "name", "status", "mode", "last_success_at", "last_error"],
+      "properties": {
+        "source_id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "url": { "type": ["string", "null"] },
+        "license": { "type": ["string", "null"] },
+        "status": { "enum": ["ok", "stale", "error", "disabled"] },
+        "mode": { "enum": ["fixture", "live"] },
+        "last_success_at": {
+          "oneOf": [{ "$ref": "#/$defs/isoTimestamp" }, { "type": "null" }]
+        },
+        "last_error": { "type": ["string", "null"] },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}

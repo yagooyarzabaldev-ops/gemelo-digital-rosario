@@ -1,0 +1,230 @@
+{
+  "name": "[TEMPLATE] Identity — self-verification (RENAPER / mock)",
+  "meta": {
+    "templateNote": "Template/spec only. Consent-based SELF-verification: the subject verifies their OWN identity. NOT a people-search workflow. Contains no credentials or secrets. The RENAPER call is gated behind a credential that does not exist until you attach one; without it the flow uses the synthetic mock provider.",
+    "writesTo": [
+      "identity.consent_records",
+      "identity.verification_requests",
+      "identity.identity_profiles",
+      "identity.audit_log"
+    ],
+    "legalNotes": [
+      "Operating in live mode against RENAPER requires a convenio and official credentials. Never commit them here.",
+      "subject_ref is sha256(documento_numero || sexo || APP_SALT); APP_SALT comes from an n8n environment variable / credential, never from this file.",
+      "No verification proceeds unless consent.granted and consent.subject_confirmed_owner are both true.",
+      "Data minimization + retention_until are enforced when writing identity_profiles."
+    ]
+  },
+  "nodes": [
+    {
+      "id": "note-1",
+      "name": "How this template works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, -340],
+      "parameters": {
+        "content": "TEMPLATE — consent-based self-verification\n\nInput (Webhook body): { documento_numero, sexo, consent: { granted, subject_confirmed_owner, terms_version }, purpose }\n\n1. Consent gate: rejects unless granted === true AND subject_confirmed_owner === true.\n2. Compute subject_ref = sha256(documento_numero + sexo + $env.APP_SALT). The raw DNI is never logged or stored as a key. Set APP_SALT as an n8n environment variable — do NOT hardcode it.\n3. Record consent + open a verification_requests row (idempotent on provider+request_key).\n4. Provider branch:\n   - live: call RENAPER with YOUR official credential (placeholder node, disabled by default).\n   - mock: return the synthetic demo subject. The mock NEVER returns data for any document other than the configured test DNI.\n5. Upsert a minimized identity_profiles row with a mandatory retention_until, write audit_log, and return a document shaped by contracts/identity-verification.schema.json.\n6. Errors close the request as 'failed' and are audited.\n\nThis workflow only verifies the requester's OWN identity. It must not be repurposed to look up third parties."
+      }
+    },
+    {
+      "id": "trigger-1",
+      "name": "Webhook (verify self)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "identity/verify-self",
+        "responseMode": "lastNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "code-consent-gate",
+      "name": "Consent gate + subject_ref",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "// Reject anything without explicit, owner-confirmed consent.\nconst body = $json.body ?? $json;\nconst consent = body.consent ?? {};\nif (consent.granted !== true || consent.subject_confirmed_owner !== true) {\n  throw new Error('Consent required: the subject must confirm ownership and grant consent.');\n}\nconst numero = String(body.documento_numero ?? '').replace(/\\D/g, '');\nif (!/^\\d{7,8}$/.test(numero)) throw new Error('Invalid document number.');\nconst sexo = String(body.sexo ?? '').toUpperCase();\nif (!['F', 'M', 'X'].includes(sexo)) throw new Error('Invalid sexo (F|M|X).');\n\nconst salt = $env.APP_SALT;\nif (!salt) throw new Error('APP_SALT environment variable is not configured.');\nconst { createHash } = require('crypto');\nconst subject_ref = createHash('sha256').update(numero + sexo + salt).digest('hex');\n\nreturn [{ json: {\n  numero, sexo, subject_ref,\n  purpose: body.purpose ?? 'Autoverificación de identidad solicitada por el propio titular.',\n  terms_version: consent.terms_version ?? 'unversioned',\n  request_key: $execution.id,\n  mode: $env.IDENTITY_MODE === 'live' ? 'live' : 'mock',\n} }];"
+      }
+    },
+    {
+      "id": "pg-consent",
+      "name": "Record consent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [440, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO identity.consent_records (subject_ref, purpose, terms_version, channel)\nVALUES ($1, $2, $3, 'web')\nRETURNING id;",
+        "options": { "queryReplacement": "={{ $json.subject_ref }},{{ $json.purpose }},{{ $json.terms_version }}" }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "pg-open-req",
+      "name": "Open verification request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [660, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO identity.verification_requests (consent_id, subject_ref, provider, mode, request_key, status)\nVALUES ($1, $2, $3, $4, $5, 'pending')\nON CONFLICT (provider, request_key) DO UPDATE SET status = 'pending', error_message = NULL\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{ $('Record consent').item.json.id }},{{ $('Consent gate + subject_ref').item.json.subject_ref }},{{ $('Consent gate + subject_ref').item.json.mode === 'live' ? 'renaper' : 'renaper-mock' }},{{ $('Consent gate + subject_ref').item.json.mode }},{{ $('Consent gate + subject_ref').item.json.request_key }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "if-live",
+      "name": "Live provider?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [880, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [
+            {
+              "leftValue": "={{ $('Consent gate + subject_ref').item.json.mode }}",
+              "rightValue": "live",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "http-renaper",
+      "name": "RENAPER (live — attach your credential)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, -120],
+      "disabled": true,
+      "notes": "DISABLED by default. Enable only with an authorized RENAPER credential and a signed convenio. The endpoint/auth below are placeholders — configure them via an n8n credential, never inline.",
+      "parameters": {
+        "method": "POST",
+        "url": "https://REPLACE_WITH_OFFICIAL_RENAPER_ENDPOINT/persona",
+        "authentication": "predefinedCredentialType",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"dni\": \"{{ $('Consent gate + subject_ref').item.json.numero }}\",\n  \"sexo\": \"{{ $('Consent gate + subject_ref').item.json.sexo }}\"\n}",
+        "options": { "timeout": 20000 }
+      }
+    },
+    {
+      "id": "code-mock",
+      "name": "Mock provider (synthetic)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 120],
+      "parameters": {
+        "jsCode": "// Synthetic provider. Returns data ONLY for the configured test DNI; any other\n// document yields not_found. This makes the demo unusable against real people.\nconst TEST = { numero: '30123456', sexo: 'F' };\nconst input = $('Consent gate + subject_ref').item.json;\nif (input.numero !== TEST.numero || input.sexo !== TEST.sexo) {\n  return [{ json: { status: 'not_found', subject: null } }];\n}\nreturn [{ json: { status: 'verified', subject: {\n  documento: { tipo: 'DNI', numero: '30123456', ejemplar: 'A' },\n  sexo: 'F', nombres: 'Ada Ejemplo', apellidos: 'Demostración',\n  cuil: '27-30123456-4', fecha_nacimiento: '1983-04-15', nacionalidad: 'Argentina',\n  fallecido: false,\n  domicilio: { calle: 'Av. de la Demostración', numero: '1234', piso: '3 B',\n    ciudad: 'Rosario', provincia: 'Santa Fe', codigo_postal: 'S2000DXX',\n    lon: -60.6505, lat: -32.9468 },\n  foto: { kind: 'placeholder', mime: 'image/svg+xml', uri: '/public/avatar-placeholder.svg',\n    note: 'Imagen generada. En modo demo no se expone ninguna fotografía real.' },\n} }];"
+      }
+    },
+    {
+      "id": "code-persist",
+      "name": "Persist profile + build result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 0],
+      "parameters": {
+        "jsCode": "// Assemble an identity-verification document (see the contract) and prepare the\n// minimized profile row. Retention defaults to 180 days unless configured.\nconst gate = $('Consent gate + subject_ref').item.json;\nconst prov = $json;\nconst now = new Date();\nconst retentionDays = Number($env.IDENTITY_RETENTION_DAYS ?? 180);\nconst retentionUntil = new Date(now.getTime() + retentionDays * 86400000);\nconst doc = {\n  contract: 'identity-verification', contract_version: '1.0.0',\n  request_id: gate.request_key, generated_at: now.toISOString().replace(/\\.\\d{3}Z$/, 'Z'),\n  mode: gate.mode,\n  consent: { granted: true, subject_confirmed_owner: true, purpose: gate.purpose,\n    legal_basis: 'Consentimiento del titular (Ley 25.326, arts. 5 y 6).',\n    terms_version: gate.terms_version, consented_at: now.toISOString().replace(/\\.\\d{3}Z$/, 'Z'),\n    expires_at: retentionUntil.toISOString().replace(/\\.\\d{3}Z$/, 'Z') },\n  verification: { status: prov.status, provider: gate.mode === 'live' ? 'renaper' : 'renaper-mock',\n    provider_label: gate.mode === 'live' ? 'RENAPER' : 'RENAPER (proveedor simulado)',\n    verified_at: prov.status === 'verified' ? now.toISOString().replace(/\\.\\d{3}Z$/, 'Z') : null,\n    request_key: gate.request_key, match_score: prov.status === 'verified' ? 1.0 : null, error: null },\n  subject: prov.subject ?? undefined,\n  source_status: [{ source_id: 'renaper', name: 'RENAPER — Registro Nacional de las Personas',\n    url: 'https://www.argentina.gob.ar/renaper', status: gate.mode === 'live' ? 'ok' : 'mock',\n    mode: gate.mode, last_success_at: now.toISOString().replace(/\\.\\d{3}Z$/, 'Z'), last_error: null }],\n  governance: { data_subject_rights: 'Acceso, rectificación, supresión y oposición (ARCO).',\n    rights_contact: $env.PRIVACY_CONTACT ?? 'privacidad@example.org',\n    retention_until: retentionUntil.toISOString().replace(/\\.\\d{3}Z$/, 'Z'), stored_fields_minimized: true },\n};\nif (gate.mode === 'mock') doc.demo_test_subject = { documento_numero: '30123456', sexo: 'F' };\nreturn [{ json: { doc, subject_ref: gate.subject_ref, retention_until: doc.governance.retention_until,\n  status: prov.status, request_key: gate.request_key,\n  payload: JSON.stringify(prov.subject ?? {}), photo_kind: prov.subject?.foto?.kind ?? 'placeholder',\n  photo_ref: prov.subject?.foto?.uri ?? null } }];"
+      }
+    },
+    {
+      "id": "pg-store-profile",
+      "name": "Store profile + close request",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1560, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH req AS (\n  UPDATE identity.verification_requests\n  SET status = $1, match_score = CASE WHEN $1 = 'verified' THEN 1.0 ELSE NULL END, completed_at = now()\n  WHERE provider = CASE WHEN $7 = 'live' THEN 'renaper' ELSE 'renaper-mock' END AND request_key = $2\n  RETURNING id\n)\nINSERT INTO identity.identity_profiles (verification_id, subject_ref, payload, photo_kind, photo_ref, retention_until)\nSELECT req.id, $3, $4::jsonb, $5, $6, $8::timestamptz FROM req\nWHERE $1 = 'verified'\nON CONFLICT (verification_id) DO UPDATE SET payload = EXCLUDED.payload;",
+        "options": {
+          "queryReplacement": "={{ $json.status }},{{ $json.request_key }},{{ $json.subject_ref }},{{ $json.payload }},{{ $json.photo_kind }},{{ $json.photo_ref }},{{ $('Consent gate + subject_ref').item.json.mode }},{{ $json.retention_until }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "pg-audit",
+      "name": "Audit completion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1780, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO identity.audit_log (subject_ref, action, actor, detail)\nVALUES ($1, 'verification_completed', 'self', jsonb_build_object('status', $2, 'request_key', $3));",
+        "options": {
+          "queryReplacement": "={{ $('Persist profile + build result').item.json.subject_ref }},{{ $('Persist profile + build result').item.json.status }},{{ $('Persist profile + build result').item.json.request_key }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "code-respond",
+      "name": "Respond with result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 0],
+      "parameters": {
+        "jsCode": "return [{ json: $('Persist profile + build result').item.json.doc }];"
+      }
+    },
+    {
+      "id": "err-trigger",
+      "name": "On workflow error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [440, 280],
+      "parameters": {}
+    },
+    {
+      "id": "pg-audit-error",
+      "name": "Audit failure",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [660, 280],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO identity.audit_log (action, actor, detail)\nVALUES ('verification_completed', 'self', jsonb_build_object('status', 'failed', 'error', $1));",
+        "options": { "queryReplacement": "={{ $json.execution.error.message }}" }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook (verify self)": { "main": [[{ "node": "Consent gate + subject_ref", "type": "main", "index": 0 }]] },
+    "Consent gate + subject_ref": { "main": [[{ "node": "Record consent", "type": "main", "index": 0 }]] },
+    "Record consent": { "main": [[{ "node": "Open verification request", "type": "main", "index": 0 }]] },
+    "Open verification request": { "main": [[{ "node": "Live provider?", "type": "main", "index": 0 }]] },
+    "Live provider?": {
+      "main": [
+        [{ "node": "RENAPER (live — attach your credential)", "type": "main", "index": 0 }],
+        [{ "node": "Mock provider (synthetic)", "type": "main", "index": 0 }]
+      ]
+    },
+    "RENAPER (live — attach your credential)": { "main": [[{ "node": "Persist profile + build result", "type": "main", "index": 0 }]] },
+    "Mock provider (synthetic)": { "main": [[{ "node": "Persist profile + build result", "type": "main", "index": 0 }]] },
+    "Persist profile + build result": { "main": [[{ "node": "Store profile + close request", "type": "main", "index": 0 }]] },
+    "Store profile + close request": { "main": [[{ "node": "Audit completion", "type": "main", "index": 0 }]] },
+    "Audit completion": { "main": [[{ "node": "Respond with result", "type": "main", "index": 0 }]] },
+    "On workflow error": { "main": [[{ "node": "Audit failure", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

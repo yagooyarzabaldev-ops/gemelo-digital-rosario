@@ -1,0 +1,183 @@
+{
+  "name": "[TEMPLATE] DT Ingest — Open-Meteo weather + air quality",
+  "meta": {
+    "templateNote": "Template/spec only — import into n8n, attach your own local Postgres credential, then activate. Contains no credentials or secrets. Open-Meteo requires no API key.",
+    "writesTo": [
+      "digital_twin.ingestion_runs",
+      "digital_twin.geo_entities",
+      "digital_twin.observations"
+    ],
+    "sourceIds": ["open-meteo", "open-meteo-air-quality"]
+  },
+  "nodes": [
+    {
+      "id": "note-1",
+      "name": "How this template works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, -260],
+      "parameters": {
+        "content": "TEMPLATE — Open-Meteo ingestion\n\n1. Runs hourly.\n2. Opens an ingestion_runs row (status=running) keyed by the n8n execution id, so retries are idempotent.\n3. Fetches hourly weather + air quality for each station in 'Define stations'.\n4. Upserts geo_entities and observations via the natural-key UNIQUE constraints (ON CONFLICT DO NOTHING / DO UPDATE).\n5. Closes the run as success, or as error via the error branch — failed runs are recorded, never silently dropped.\n\nBefore activating: create a Postgres credential in your n8n instance and select it on every Postgres node. Do NOT commit credentials to this repository."
+      }
+    },
+    {
+      "id": "trigger-1",
+      "name": "Every hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+      }
+    },
+    {
+      "id": "code-stations",
+      "name": "Define stations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [200, 0],
+      "parameters": {
+        "jsCode": "// Stations for Rosario / Gran Rosario / Paraná corridor / Villa Constitución.\n// Keep ids aligned with data/fixtures/layer-snapshot.sample.json.\nconst stations = [\n  { external_id: 'wx-rosario-centro',      name: 'Rosario Centro',           lon: -60.6393, lat: -32.9468 },\n  { external_id: 'wx-san-lorenzo',         name: 'San Lorenzo',              lon: -60.7333, lat: -32.7459 },\n  { external_id: 'wx-granadero-baigorria', name: 'Granadero Baigorria',      lon: -60.6794, lat: -32.8569 },\n  { external_id: 'wx-villa-g-galvez',      name: 'Villa Gobernador Gálvez',  lon: -60.6044, lat: -33.0256 },\n  { external_id: 'wx-funes',               name: 'Funes',                    lon: -60.8103, lat: -32.9211 },\n  { external_id: 'wx-villa-constitucion',  name: 'Villa Constitución',       lon: -60.3297, lat: -33.2329 },\n];\nreturn stations.map(s => ({ json: { ...s, run_key: $execution.id } }));"
+      }
+    },
+    {
+      "id": "pg-open-run",
+      "name": "Open ingestion run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [400, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO digital_twin.ingestion_runs (source_id, run_key, status)\nVALUES ('open-meteo', $1, 'running')\nON CONFLICT (source_id, run_key) DO UPDATE SET status = 'running', error_message = NULL\nRETURNING id;",
+        "options": { "queryReplacement": "={{ $json.run_key }}" }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "http-weather",
+      "name": "Fetch Open-Meteo forecast",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, -100],
+      "parameters": {
+        "url": "https://api.open-meteo.com/v1/forecast",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "latitude", "value": "={{ $('Define stations').item.json.lat }}" },
+            { "name": "longitude", "value": "={{ $('Define stations').item.json.lon }}" },
+            { "name": "current", "value": "temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation" },
+            { "name": "timezone", "value": "UTC" }
+          ]
+        },
+        "options": { "timeout": 15000 }
+      }
+    },
+    {
+      "id": "http-airquality",
+      "name": "Fetch Open-Meteo air quality",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 100],
+      "parameters": {
+        "url": "https://air-quality-api.open-meteo.com/v1/air-quality",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "latitude", "value": "={{ $('Define stations').item.json.lat }}" },
+            { "name": "longitude", "value": "={{ $('Define stations').item.json.lon }}" },
+            { "name": "current", "value": "pm2_5,pm10" },
+            { "name": "timezone", "value": "UTC" }
+          ]
+        },
+        "options": { "timeout": 15000 }
+      }
+    },
+    {
+      "id": "code-map",
+      "name": "Map to observation rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [820, 0],
+      "parameters": {
+        "jsCode": "// Shape each API response into one observation row matching\n// docs/layer-snapshot-contract.md value keys.\n// Open-Meteo returns times like '2026-06-09T12:00' (UTC, no seconds/Z).\nconst iso = (t) => (t.endsWith('Z') ? t : t + ':00Z');\nconst station = $('Define stations').item.json;\nconst wx = $('Fetch Open-Meteo forecast').item.json.current;\nconst aq = $('Fetch Open-Meteo air quality').item.json.current;\nconst rows = [];\nif (wx) {\n  rows.push({ source_id: 'open-meteo', layer: 'weather', external_ref: station.external_id,\n    observed_at: iso(wx.time), lon: station.lon, lat: station.lat,\n    values: { temperature_c: wx.temperature_2m, relative_humidity_pct: wx.relative_humidity_2m,\n      wind_speed_kmh: wx.wind_speed_10m, wind_direction_deg: wx.wind_direction_10m,\n      precipitation_mm: wx.precipitation } });\n}\nif (aq) {\n  rows.push({ source_id: 'open-meteo-air-quality', layer: 'air_quality', external_ref: station.external_id.replace('wx-', 'aq-'),\n    observed_at: iso(aq.time), lon: station.lon, lat: station.lat,\n    values: { pm2_5_ugm3: aq.pm2_5, pm10_ugm3: aq.pm10 } });\n}\nreturn rows.map(r => ({ json: { ...r, station, run_key: station.run_key } }));"
+      }
+    },
+    {
+      "id": "pg-upsert",
+      "name": "Upsert entity + observation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1040, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH ent AS (\n  INSERT INTO digital_twin.geo_entities (source_id, external_id, kind, name, lon, lat)\n  VALUES ($1, $2, 'station', $3, $4, $5)\n  ON CONFLICT (source_id, external_id) DO UPDATE SET updated_at = now()\n  RETURNING id\n)\nINSERT INTO digital_twin.observations (source_id, entity_id, layer, external_ref, observed_at, lon, lat, values)\nSELECT $1, ent.id, $6, $2, $7::timestamptz, $4, $5, $8::jsonb FROM ent\nON CONFLICT (source_id, layer, external_ref, observed_at) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ $json.source_id }},{{ $json.external_ref }},{{ $json.station.name }},{{ $json.lon }},{{ $json.lat }},{{ $json.layer }},{{ $json.observed_at }},{{ JSON.stringify($json.values) }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "pg-close-run",
+      "name": "Close run (success)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1260, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE digital_twin.ingestion_runs\nSET status = 'success', finished_at = now(), records_ingested = records_ingested + 1\nWHERE source_id = 'open-meteo' AND run_key = $1;",
+        "options": { "queryReplacement": "={{ $json.run_key }}" }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "err-trigger",
+      "name": "On workflow error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [400, 300],
+      "parameters": {}
+    },
+    {
+      "id": "pg-close-error",
+      "name": "Close run (error)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [620, 300],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE digital_twin.ingestion_runs\nSET status = 'error', finished_at = now(), error_message = $2\nWHERE source_id = 'open-meteo' AND run_key = $1;",
+        "options": {
+          "queryReplacement": "={{ $json.execution.id }},{{ $json.execution.error.message }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    }
+  ],
+  "connections": {
+    "Every hour": { "main": [[{ "node": "Define stations", "type": "main", "index": 0 }]] },
+    "Define stations": { "main": [[{ "node": "Open ingestion run", "type": "main", "index": 0 }]] },
+    "Open ingestion run": {
+      "main": [[
+        { "node": "Fetch Open-Meteo forecast", "type": "main", "index": 0 },
+        { "node": "Fetch Open-Meteo air quality", "type": "main", "index": 0 }
+      ]]
+    },
+    "Fetch Open-Meteo forecast": { "main": [[{ "node": "Map to observation rows", "type": "main", "index": 0 }]] },
+    "Fetch Open-Meteo air quality": { "main": [[{ "node": "Map to observation rows", "type": "main", "index": 0 }]] },
+    "Map to observation rows": { "main": [[{ "node": "Upsert entity + observation", "type": "main", "index": 0 }]] },
+    "Upsert entity + observation": { "main": [[{ "node": "Close run (success)", "type": "main", "index": 0 }]] },
+    "On workflow error": { "main": [[{ "node": "Close run (error)", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

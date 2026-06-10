@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gemelo Digital Rosario — CityPulse 4D</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div class="brand-text">
+        <span class="brand-title">Gemelo Digital Rosario</span>
+        <span class="brand-sub">CityPulse 4D · Rosario · Gran Rosario · Corredor del Paraná · Villa Constitución</span>
+      </div>
+    </div>
+    <div id="mode-banner" class="mode-pill" hidden></div>
+    <a class="nav-link" href="verify/">PersonaTwin · verificación →</a>
+    <div class="topbar-meta" id="snapshot-meta"></div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel sidebar-left">
+      <section class="panel-block">
+        <h2>Data layers</h2>
+        <ul id="layer-toggles" class="layer-list"></ul>
+      </section>
+      <section class="panel-block">
+        <h2>Sources &amp; freshness</h2>
+        <ul id="source-status" class="source-list"></ul>
+      </section>
+    </aside>
+
+    <section class="map-wrap">
+      <canvas id="map"></canvas>
+      <div id="map-empty-notes" class="map-empty-notes"></div>
+      <div id="map-legend" class="map-legend"></div>
+      <div id="map-attribution" class="map-attribution"></div>
+      <div id="load-error" class="load-error" hidden></div>
+    </section>
+
+    <aside class="panel sidebar-right">
+      <section class="panel-block grow">
+        <h2>Inspector</h2>
+        <div id="inspector" class="inspector"></div>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="timebar">
+    <button id="play-btn" class="play-btn" title="Play / pause time">▶</button>
+    <div class="timeline">
+      <input id="time-slider" type="range" min="0" max="0" step="1" value="0" />
+      <div id="time-ticks" class="time-ticks"></div>
+    </div>
+    <div class="time-readout">
+      <span id="time-label">—</span>
+      <span id="time-range-label" class="muted"></span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

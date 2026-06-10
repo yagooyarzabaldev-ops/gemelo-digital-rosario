@@ -1,0 +1,74 @@
+{
+  "contract": "identity-verification",
+  "contract_version": "1.0.0",
+  "request_id": "demo-verif-30123456",
+  "generated_at": "2026-06-10T12:00:00Z",
+  "mode": "mock",
+  "disclaimer": "Datos sintéticos de demostración. El proveedor de identidad está SIMULADO. No es una persona real ni un dato oficial. En modo demo sólo se verifica un único DNI de prueba.",
+  "demo_test_subject": {
+    "documento_numero": "30123456",
+    "sexo": "F"
+  },
+  "consent": {
+    "granted": true,
+    "subject_confirmed_owner": true,
+    "purpose": "Autoverificación de identidad solicitada por el propio titular.",
+    "legal_basis": "Consentimiento libre, expreso e informado del titular (Ley 25.326, arts. 5 y 6).",
+    "terms_version": "2026-06-01",
+    "consented_at": "2026-06-10T12:00:00Z",
+    "expires_at": "2026-12-10T12:00:00Z"
+  },
+  "verification": {
+    "status": "verified",
+    "provider": "renaper-mock",
+    "provider_label": "RENAPER (proveedor simulado)",
+    "verified_at": "2026-06-10T12:00:00Z",
+    "request_key": "demo-verif-30123456",
+    "match_score": 1.0,
+    "error": null
+  },
+  "subject": {
+    "documento": { "tipo": "DNI", "numero": "30123456", "ejemplar": "A" },
+    "sexo": "F",
+    "nombres": "Ada Ejemplo",
+    "apellidos": "Demostración",
+    "cuil": "27-30123456-4",
+    "fecha_nacimiento": "1983-04-15",
+    "nacionalidad": "Argentina",
+    "fallecido": false,
+    "domicilio": {
+      "calle": "Av. de la Demostración",
+      "numero": "1234",
+      "piso": "3 B",
+      "ciudad": "Rosario",
+      "provincia": "Santa Fe",
+      "codigo_postal": "S2000DXX",
+      "lon": -60.6505,
+      "lat": -32.9468
+    },
+    "foto": {
+      "kind": "placeholder",
+      "mime": "image/svg+xml",
+      "uri": "../../../public/avatar-placeholder.svg",
+      "note": "Imagen generada. En modo demo no se expone ninguna fotografía real."
+    }
+  },
+  "source_status": [
+    {
+      "source_id": "renaper",
+      "name": "RENAPER — Registro Nacional de las Personas",
+      "url": "https://www.argentina.gob.ar/renaper",
+      "status": "mock",
+      "mode": "mock",
+      "last_success_at": "2026-06-10T12:00:00Z",
+      "last_error": null,
+      "note": "Fuente oficial. Operar en modo live requiere convenio y credenciales oficiales. En demo se usa un proveedor simulado con datos sintéticos."
+    }
+  ],
+  "governance": {
+    "data_subject_rights": "El titular puede ejercer en todo momento sus derechos de acceso, rectificación, supresión y oposición (ARCO) sobre sus datos personales.",
+    "rights_contact": "privacidad@example.org",
+    "retention_until": "2026-12-10T12:00:00Z",
+    "stored_fields_minimized": true
+  }
+}

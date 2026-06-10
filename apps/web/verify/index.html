@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PersonaTwin — Gemelo Personal Verificado</title>
+  <link rel="stylesheet" href="verify.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div class="brand-text">
+        <span class="brand-title">PersonaTwin · Gemelo Personal Verificado</span>
+        <span class="brand-sub">Demo sintética con salvaguardas de privacidad · autoverificación del titular</span>
+      </div>
+    </div>
+    <div id="mode-banner" class="mode-pill" hidden></div>
+    <a class="nav-link" href="../">← Volver al gemelo de ciudad</a>
+  </header>
+
+  <main class="wrap">
+    <!-- STEP 1 — consent + form -->
+    <section id="step-consent" class="card consent-card">
+      <h1>Verificá tu propia identidad</h1>
+      <p class="lead">
+        <strong>PersonaTwin</strong> permite que <strong>vos, como titular</strong>, verifiques
+        tus propios datos de identidad y los veas en tu gemelo personal verificado. No es un
+        buscador de personas ni una consulta de DNI público: sólo podés verificar tu propio
+        documento, con tu consentimiento.
+      </p>
+      <div class="callout-demo">
+        Este demo no consulta RENAPER ni bases reales. Sólo usa datos sintéticos.
+      </div>
+
+      <div class="legal-box">
+        <h2>Antes de continuar</h2>
+        <ul>
+          <li><strong>Finalidad:</strong> autoverificación de identidad solicitada por el propio titular.</li>
+          <li><strong>Base legal:</strong> tu consentimiento libre, expreso e informado (Ley 25.326, arts. 5 y 6).</li>
+          <li><strong>Datos:</strong> se procesan los mínimos necesarios. Podés ejercer tus derechos de acceso, rectificación, supresión y oposición (ARCO) en cualquier momento.</li>
+          <li><strong>Conservación:</strong> tus datos se eliminan al vencer el plazo de retención, o cuando lo solicites.</li>
+        </ul>
+      </div>
+
+      <form id="verify-form" autocomplete="off">
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">Número de documento (DNI)</span>
+            <input id="dni" name="dni" inputmode="numeric" maxlength="10" placeholder="30123456" required />
+          </label>
+          <label class="field sexo">
+            <span class="field-label">Sexo</span>
+            <select id="sexo" name="sexo" required>
+              <option value="F">F</option>
+              <option value="M">M</option>
+              <option value="X">X</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="consent-check">
+          <input type="checkbox" id="consent" required />
+          <span>Confirmo que <strong>soy el titular</strong> de este documento y otorgo mi
+          consentimiento para verificar y mostrar mis datos según la finalidad indicada.</span>
+        </label>
+
+        <p id="form-error" class="form-error" hidden></p>
+
+        <button type="submit" class="btn-primary">Verificar mi identidad</button>
+        <p id="demo-hint" class="demo-hint"></p>
+      </form>
+    </section>
+
+    <!-- STEP 2 — verifying -->
+    <section id="step-loading" class="card loading-card" hidden>
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Verificando con el proveedor de identidad…</p>
+    </section>
+
+    <!-- STEP 3 — result -->
+    <section id="step-result" class="result" hidden></section>
+  </main>
+
+  <div id="load-error" class="load-error" hidden></div>
+
+  <script src="verify.js"></script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+{
+  "name": "[TEMPLATE] DT Ingest — NASA FIRMS fires / thermal anomalies",
+  "meta": {
+    "templateNote": "Template/spec only — import into n8n, attach your own Postgres credential AND a FIRMS MAP_KEY credential, then activate. The MAP_KEY placeholder below must be replaced inside n8n; never commit a real key to this repository.",
+    "writesTo": ["digital_twin.ingestion_runs", "digital_twin.observations"],
+    "sourceIds": ["nasa-firms"]
+  },
+  "nodes": [
+    {
+      "id": "note-1",
+      "name": "How this template works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, -300],
+      "parameters": {
+        "content": "TEMPLATE — NASA FIRMS fire ingestion\n\n1. Runs every 3 hours (FIRMS data is not minute-fresh; respect their access policy and rate limits).\n2. Requires a free FIRMS MAP_KEY (https://firms.modaps.eosdis.nasa.gov/api/). Store it as an n8n credential / expression — the {{FIRMS_MAP_KEY}} placeholder in the URL is intentionally invalid so the template cannot run unconfigured.\n3. Queries the area API for the regional bbox (CSV response), parses rows, and upserts observations keyed by satellite+coords+acquisition time.\n4. If FIRMS is unavailable or rate-limits (HTTP 429), the run closes as 'error' and the publish workflow marks the source 'stale'/'error' — the layer keeps its last good data with an honest freshness badge. Never fabricate hotspots.\n\nDelta del Paraná wetland fires are the key regional use case for this layer."
+      }
+    },
+    {
+      "id": "trigger-1",
+      "name": "Every 3 hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 3 }] }
+      }
+    },
+    {
+      "id": "pg-open-run",
+      "name": "Open ingestion run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [200, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO digital_twin.ingestion_runs (source_id, run_key, status)\nVALUES ('nasa-firms', $1, 'running')\nON CONFLICT (source_id, run_key) DO UPDATE SET status = 'running', error_message = NULL;",
+        "options": { "queryReplacement": "={{ $execution.id }}" }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "http-firms",
+      "name": "Fetch FIRMS area CSV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [400, 0],
+      "parameters": {
+        "url": "https://firms.modaps.eosdis.nasa.gov/api/area/csv/{{FIRMS_MAP_KEY}}/VIIRS_SNPP_NRT/-61.2,-33.6,-60.0,-32.4/1",
+        "options": { "timeout": 30000, "response": { "response": { "responseFormat": "text" } } }
+      },
+      "notesInFlow": true,
+      "notes": "Replace {{FIRMS_MAP_KEY}} with an n8n expression reading your own credential. bbox order for FIRMS area API: west,south,east,north; trailing /1 = last 1 day."
+    },
+    {
+      "id": "code-parse",
+      "name": "Parse CSV + map rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [620, 0],
+      "parameters": {
+        "jsCode": "// FIRMS area API returns CSV with a header row. An empty body or\n// header-only response means no hotspots — a valid state.\nconst text = ($input.first().json.data ?? '').trim();\nconst lines = text.split(/\\r?\\n/).filter(Boolean);\nif (lines.length <= 1) {\n  return [{ json: { empty: true, run_key: $execution.id } }];\n}\nconst header = lines[0].split(',');\nconst col = (row, name) => row[header.indexOf(name)];\nconst rows = [];\nfor (const line of lines.slice(1)) {\n  const r = line.split(',');\n  const lat = parseFloat(col(r, 'latitude'));\n  const lon = parseFloat(col(r, 'longitude'));\n  const date = col(r, 'acq_date');            // YYYY-MM-DD\n  const time = String(col(r, 'acq_time')).padStart(4, '0'); // HHMM\n  const observedAt = `${date}T${time.slice(0, 2)}:${time.slice(2)}:00Z`;\n  rows.push({\n    source_id: 'nasa-firms',\n    layer: 'fires',\n    external_ref: `${col(r, 'satellite')}-${lat}-${lon}-${observedAt}`,\n    observed_at: observedAt,\n    lon, lat,\n    values: {\n      confidence: col(r, 'confidence'),\n      frp_mw: parseFloat(col(r, 'frp')),\n      satellite: col(r, 'satellite'),\n    },\n    run_key: $execution.id,\n  });\n}\nreturn rows.map(r2 => ({ json: r2 }));"
+      }
+    },
+    {
+      "id": "if-empty",
+      "name": "Any hotspots?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [840, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.empty ?? false }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "pg-upsert",
+      "name": "Upsert observation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1060, -100],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO digital_twin.observations (source_id, layer, external_ref, observed_at, lon, lat, values)\nVALUES ($1, $2, $3, $4::timestamptz, $5, $6, $7::jsonb)\nON CONFLICT (source_id, layer, external_ref, observed_at) DO NOTHING;",
+        "options": {
+          "queryReplacement": "={{ $json.source_id }},{{ $json.layer }},{{ $json.external_ref }},{{ $json.observed_at }},{{ $json.lon }},{{ $json.lat }},{{ JSON.stringify($json.values) }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "pg-close-run",
+      "name": "Close run (success)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1280, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE digital_twin.ingestion_runs\nSET status = 'success', finished_at = now()\nWHERE source_id = 'nasa-firms' AND run_key = $1;",
+        "options": { "queryReplacement": "={{ $json.run_key }}" }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "err-trigger",
+      "name": "On workflow error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {}
+    },
+    {
+      "id": "pg-close-error",
+      "name": "Close run (error)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [420, 300],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE digital_twin.ingestion_runs\nSET status = 'error', finished_at = now(), error_message = $2\nWHERE source_id = 'nasa-firms' AND run_key = $1;",
+        "options": {
+          "queryReplacement": "={{ $json.execution.id }},{{ $json.execution.error.message }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    }
+  ],
+  "connections": {
+    "Every 3 hours": { "main": [[{ "node": "Open ingestion run", "type": "main", "index": 0 }]] },
+    "Open ingestion run": { "main": [[{ "node": "Fetch FIRMS area CSV", "type": "main", "index": 0 }]] },
+    "Fetch FIRMS area CSV": { "main": [[{ "node": "Parse CSV + map rows", "type": "main", "index": 0 }]] },
+    "Parse CSV + map rows": { "main": [[{ "node": "Any hotspots?", "type": "main", "index": 0 }]] },
+    "Any hotspots?": {
+      "main": [
+        [{ "node": "Upsert observation", "type": "main", "index": 0 }],
+        [{ "node": "Close run (success)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Upsert observation": { "main": [[{ "node": "Close run (success)", "type": "main", "index": 0 }]] },
+    "On workflow error": { "main": [[{ "node": "Close run (error)", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

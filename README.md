@@ -45,25 +45,32 @@ one-observation-per-step coverage for timeseries layers. The second checks the i
 verification fixture (see below). Both exit non-zero on any violation; run them after any
 change to a fixture or its contract.
 
-## Identity self-verification (consent-based)
+## PersonaTwin — Gemelo Personal Verificado (self-verification demo)
 
 Open **http://localhost:8080/apps/web/verify/** (linked from the dashboard top bar).
 
-This is a separate, legal feature: a person verifies **their own** identity with explicit
-consent and sees it as a personal digital twin (identity card, domicilio mini-map, governance
-panel). It is **not** a people-search tool:
+PersonaTwin is a **synthetic demo with privacy safeguards** — not a public-data DNI lookup. A
+person verifies **their own** identity with explicit consent and sees it as a personal digital
+twin (identity card, domicilio mini-map, governance panel, session audit trail).
+
+> Este demo no consulta RENAPER ni bases reales. Sólo usa datos sintéticos.
 
 - Self-verification only — the subject is always the requester, behind a required consent gate.
 - In demo (`mock`) mode only one **synthetic** test identity resolves; any other document
   returns a clean "sin coincidencia" state, so it cannot profile real people.
 - A real deployment verifies server-side via n8n against an authorized provider (RENAPER under
   convenio); credentials never reach the browser and are never committed.
-- Data is minimized, retained for a bounded period, audited, and erasable (ARCO rights — try
-  *Eliminar mis datos*).
+- Data is minimized, retained for a bounded period, audited, and the titular can exercise ARCO
+  rights as distinct flows: **Descargar mis datos** (acceso, JSON export), **Solicitar
+  rectificación** (request + audit, mutates nothing), **Revocar consentimiento** (blocks further
+  use; not the same as deletion), and **Eliminar mis datos** (supresión).
 
 Why it is shaped this way: aggregating records about an arbitrary person by DNI would be
 privacy-invasive profiling and conflicts with **Ley 25.326 (Protección de Datos Personales)**.
-The contract, schema and workflow encode the lawful, consent-based version. See
+The contract, schema and workflow encode the consented, self-only version. Going to a real
+(live) deployment would require an authorized provider/convenio, credentials by environment, a
+privacy contact, a DPIA/legal review, registration and obligations where applicable, and a
+deployed Postgres + n8n backend — none of which ship here. See
 [docs/identity-verification-contract.md](docs/identity-verification-contract.md) and
 [specbridge/identity-verification-spec.md](specbridge/identity-verification-spec.md).
 

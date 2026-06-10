@@ -105,7 +105,8 @@ CREATE TABLE IF NOT EXISTS identity.audit_log (
     subject_ref        text,
     action             text        NOT NULL
         CHECK (action IN ('consent_granted', 'consent_revoked', 'verification_requested',
-                          'verification_completed', 'profile_viewed', 'profile_erased')),
+                          'verification_completed', 'profile_viewed', 'profile_erased',
+                          'data_exported', 'rectification_requested')),
     actor              text        NOT NULL DEFAULT 'self',
     detail             jsonb       NOT NULL DEFAULT '{}'::jsonb,
     occurred_at        timestamptz NOT NULL DEFAULT now()

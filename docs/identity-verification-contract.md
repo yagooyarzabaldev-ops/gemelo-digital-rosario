@@ -1,13 +1,18 @@
-# Identity Verification Contract
+# PersonaTwin — Identity Verification Contract
 
+Product: **PersonaTwin / Gemelo Personal Verificado**
 Version: **1.0.0**
 Schema: [`contracts/identity-verification.schema.json`](../contracts/identity-verification.schema.json)
 Sample: [`data/fixtures/identity-verification.sample.json`](../data/fixtures/identity-verification.sample.json)
 
+> This is a **synthetic demo with privacy safeguards** — not a "legal/no-problem"
+> public-data lookup. The demo never queries RENAPER or any real database; it uses only
+> synthetic data.
+
 ## What this is — and what it is not
 
 This contract models **consent-based self-service identity verification**: a person verifies
-**their own** identity and views it as a personal digital twin.
+**their own** identity and views it as a personal digital twin (PersonaTwin).
 
 It is deliberately **not** a people-search / dossier format:
 
@@ -57,6 +62,25 @@ period, auditable, and erasable.
 - **failed** → provider/transport error, with `verification.error` shown; never fabricated data.
 - **pending** → awaiting the provider.
 
+## Data-subject rights flows (demo)
+
+The verified view exposes the titular's ARCO rights as distinct, synthetic, non-persistent
+actions:
+
+- **Acceso / Descargar mis datos** — generates a local JSON export of the synthetic profile,
+  consent record, verification request and the session audit trail. Labeled as demo / no
+  RENAPER query. (Legal reference: Ley 25.326 art. 14 — response within 10 días corridos.)
+- **Rectificación / Solicitar rectificación** — records a rectification *request* and an audit
+  event without mutating any data. (Ley 25.326 art. 16 — response within 5 días hábiles.)
+- **Revocación de consentimiento** — separate from erasure: marks consent revoked and blocks
+  further verification/use in the session, keeping a minimal audit event. Revocation does **not**
+  imply deletion of historical records the organization is obliged to keep.
+- **Supresión / Eliminar mis datos** — erases the displayed profile from the session, keeping a
+  minimal, non-identifying audit entry.
+
+Each action appends to a visible **session audit trail** (`identity.audit_log` actions
+`data_exported` and `rectification_requested` were added for the first two).
+
 ## Storage mapping
 
 The result maps onto the `identity` schema from
@@ -87,5 +111,17 @@ node apps/web/serve.mjs
 ```
 
 The form is prefilled with the synthetic test DNI. Tick the consent box and verify to see the
-personal digital twin; try any other number to see the `not_found` state; use *Eliminar mis
-datos* to exercise the right to erasure.
+PersonaTwin; try any other number to see the `not_found` state. From the verified view you can
+exercise each right: *Descargar mis datos* (acceso), *Solicitar rectificación*, *Revocar
+consentimiento*, *Eliminar mis datos* (supresión). Everything is synthetic and in-session — no
+RENAPER query, no real data, no persistence.
+
+## Path to a real (live) deployment
+
+This demo is **not** production. Operating in `live` mode would require, at minimum:
+
+- an authorized identity provider and a signed **convenio** (e.g. RENAPER);
+- provider **credentials supplied via environment** (n8n credentials / env vars), never committed;
+- an `APP_SALT` and a real **privacy contact**;
+- a **DPIA / legal review** and any **registration and obligations** applicable under Ley 25.326;
+- a deployed **Postgres + n8n** backend performing verification server-side.

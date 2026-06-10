@@ -371,6 +371,12 @@ function revokeConsent() {
 
 function eraseData() {
   audit("profile_erased", {});
+  // Drop the profile from in-memory state too, so nothing keeps holding the
+  // full personal data after erasure (not just a visual clear).
+  if (session.active) {
+    session.active.subject = { erased: true, note: "Perfil eliminado por el titular (supresión)." };
+    session.active.verification = { ...session.active.verification, status: "erased" };
+  }
   const host = $("step-result");
   host.innerHTML = "";
   host.appendChild(el(`
@@ -387,11 +393,9 @@ function eraseData() {
     </div>`));
   appendAuditPanel(host);
 
-  // After erasure the profile is gone; export only the audit trail + consent meta.
-  $("export-btn").addEventListener("click", () => exportData({
-    ...session.active,
-    subject: { erased: true, note: "Perfil eliminado por el titular (supresión)." },
-  }));
+  // After erasure the profile is gone; session.active.subject is already the
+  // erased marker, so the export carries only the audit trail + consent meta.
+  $("export-btn").addEventListener("click", () => exportData(session.active));
   $("newsession-btn").addEventListener("click", newSession);
 }
 

@@ -110,6 +110,13 @@ body { display: flex; flex-direction: column; }
   50% { opacity: 0.45; transform: scale(0.8); }
 }
 
+.nav-link {
+  color: var(--text-dim); text-decoration: none; font-size: 0.78rem; white-space: nowrap;
+  padding: 6px 12px; border-radius: 999px; border: 1px solid var(--panel-edge-soft);
+  transition: border-color 0.15s, color 0.15s;
+}
+.nav-link:hover { color: var(--accent); border-color: rgba(79, 210, 255, 0.4); }
+
 .topbar-meta {
   color: var(--muted); font-size: 0.72rem; text-align: right; line-height: 1.5;
   white-space: nowrap;

@@ -32,16 +32,40 @@ You will see the first visual shell of the digital twin running on deterministic
 A purple **FIXTURE MODE** banner is always visible: this data is sample data, never
 presented as live.
 
-### Validate the fixture
+### Validate the fixtures
 
 ```
-node tests/validate-fixture.mjs
+node tests/validate-fixture.mjs           # city layer snapshot
+node tests/validate-identity-fixture.mjs  # identity verification result
 ```
 
-This checks the sample snapshot against the layer-snapshot contract: required layers,
+The first checks the sample snapshot against the layer-snapshot contract: required layers,
 status enums, ISO timestamps, bbox containment, layer↔source cross-references, and
-one-observation-per-step coverage for timeseries layers. It exits non-zero on any violation.
-Run it after any change to the fixture or the contract.
+one-observation-per-step coverage for timeseries layers. The second checks the identity
+verification fixture (see below). Both exit non-zero on any violation; run them after any
+change to a fixture or its contract.
+
+## Identity self-verification (consent-based)
+
+Open **http://localhost:8080/apps/web/verify/** (linked from the dashboard top bar).
+
+This is a separate, legal feature: a person verifies **their own** identity with explicit
+consent and sees it as a personal digital twin (identity card, domicilio mini-map, governance
+panel). It is **not** a people-search tool:
+
+- Self-verification only — the subject is always the requester, behind a required consent gate.
+- In demo (`mock`) mode only one **synthetic** test identity resolves; any other document
+  returns a clean "sin coincidencia" state, so it cannot profile real people.
+- A real deployment verifies server-side via n8n against an authorized provider (RENAPER under
+  convenio); credentials never reach the browser and are never committed.
+- Data is minimized, retained for a bounded period, audited, and erasable (ARCO rights — try
+  *Eliminar mis datos*).
+
+Why it is shaped this way: aggregating records about an arbitrary person by DNI would be
+privacy-invasive profiling and conflicts with **Ley 25.326 (Protección de Datos Personales)**.
+The contract, schema and workflow encode the lawful, consent-based version. See
+[docs/identity-verification-contract.md](docs/identity-verification-contract.md) and
+[specbridge/identity-verification-spec.md](specbridge/identity-verification-spec.md).
 
 ## Architecture
 

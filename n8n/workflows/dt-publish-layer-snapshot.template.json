@@ -1,0 +1,83 @@
+{
+  "name": "[TEMPLATE] DT Publish — layer snapshot",
+  "meta": {
+    "templateNote": "Template/spec only — import into n8n, attach your own local Postgres credential, then activate. Builds the frontend-facing snapshot document defined by contracts/layer-snapshot.schema.json from digital_twin.* tables and stores it in digital_twin.layer_snapshots. The frontend reads snapshots; it never queries observations directly.",
+    "writesTo": ["digital_twin.layer_snapshots"],
+    "readsFrom": [
+      "digital_twin.sources",
+      "digital_twin.ingestion_runs",
+      "digital_twin.geo_entities",
+      "digital_twin.observations"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "note-1",
+      "name": "How this template works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, -320],
+      "parameters": {
+        "content": "TEMPLATE — snapshot publisher\n\n1. Runs every 30 minutes, after ingestion workflows have had a chance to write.\n2. Reads the last 24h of observations per layer plus the latest ingestion run per source.\n3. Computes per-source status honestly:\n   - ok: last success within the source's freshness_window_minutes\n   - stale: last success older than the window\n   - error: latest run failed (last_error carries the message)\n   Layers with zero rows but a healthy source get status 'ok_empty'.\n4. Assembles a layer-snapshot document (mode='live') and upserts it into digital_twin.layer_snapshots keyed by snapshot_id.\n5. Serving the JSON to the browser (static file export or a thin read-only endpoint) is a separate concern — this workflow only publishes to Postgres.\n\nGovernance: the snapshot must validate against contracts/layer-snapshot.schema.json. If a source is broken, publish it as broken — do not omit it and do not reuse old data without the 'stale' badge."
+      }
+    },
+    {
+      "id": "trigger-1",
+      "name": "Every 30 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 30 }] }
+      }
+    },
+    {
+      "id": "pg-read",
+      "name": "Read sources + observations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [220, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH latest_run AS (\n  SELECT DISTINCT ON (source_id) source_id, status, finished_at, error_message,\n         (SELECT max(finished_at) FROM digital_twin.ingestion_runs r2\n          WHERE r2.source_id = r.source_id AND r2.status = 'success') AS last_success_at\n  FROM digital_twin.ingestion_runs r\n  ORDER BY source_id, started_at DESC\n)\nSELECT json_build_object(\n  'sources', (SELECT json_agg(json_build_object(\n      'source_id', s.id, 'name', s.name, 'url', s.url, 'license', s.license,\n      'freshness_window_minutes', s.freshness_window_minutes, 'enabled', s.enabled,\n      'last_run_status', lr.status, 'last_success_at', lr.last_success_at,\n      'last_error', lr.error_message))\n    FROM digital_twin.sources s LEFT JOIN latest_run lr ON lr.source_id = s.id),\n  'observations', (SELECT coalesce(json_agg(json_build_object(\n      'source_id', o.source_id, 'layer', o.layer, 'external_ref', o.external_ref,\n      'observed_at', o.observed_at, 'lon', o.lon, 'lat', o.lat, 'values', o.values,\n      'entity_name', ge.name)), '[]'::json)\n    FROM digital_twin.observations o\n    LEFT JOIN digital_twin.geo_entities ge ON ge.id = o.entity_id\n    WHERE o.observed_at >= now() - interval '24 hours')\n) AS bundle;"
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "code-build",
+      "name": "Build snapshot document",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 0],
+      "parameters": {
+        "jsCode": "// Assemble a layer-snapshot v1.0.0 document (see docs/layer-snapshot-contract.md).\nconst bundle = $input.first().json.bundle;\nconst now = new Date();\nconst iso = (d) => new Date(d).toISOString().replace(/\\.\\d{3}Z$/, 'Z');\n\nconst LAYERS = {\n  weather:     { label: 'Weather', kind: 'timeseries', source_id: 'open-meteo' },\n  air_quality: { label: 'Air quality', kind: 'timeseries', source_id: 'open-meteo-air-quality' },\n  fires:       { label: 'Fires / thermal anomalies', kind: 'events', source_id: 'nasa-firms' },\n  earthquakes: { label: 'Earthquakes', kind: 'events', source_id: 'usgs-earthquakes' },\n  pois:        { label: 'Points of interest', kind: 'static', source_id: 'osm-overpass' },\n};\n\n// Honest per-source status from the latest runs.\nconst sourceStatus = (bundle.sources ?? []).map((s) => {\n  let status = 'error';\n  if (!s.enabled) status = 'disabled';\n  else if (s.last_run_status === 'error') status = 'error';\n  else if (s.last_success_at) {\n    const ageMin = (now - new Date(s.last_success_at)) / 60000;\n    status = ageMin <= s.freshness_window_minutes ? 'ok' : 'stale';\n  }\n  return {\n    source_id: s.source_id, name: s.name, url: s.url, license: s.license,\n    status, mode: 'live',\n    last_success_at: s.last_success_at ? iso(s.last_success_at) : null,\n    last_error: s.last_error ?? null,\n  };\n});\nconst statusBySource = Object.fromEntries(sourceStatus.map((s) => [s.source_id, s]));\n\n// Group observations into features per layer.\nconst layers = {};\nfor (const [layerId, def] of Object.entries(LAYERS)) {\n  const obs = (bundle.observations ?? []).filter((o) => o.layer === layerId);\n  const byFeature = new Map();\n  for (const o of obs) {\n    if (!byFeature.has(o.external_ref)) {\n      byFeature.set(o.external_ref, {\n        id: o.external_ref, name: o.entity_name ?? o.values.place ?? o.external_ref,\n        lon: o.lon, lat: o.lat, observations: [],\n      });\n    }\n    byFeature.get(o.external_ref).observations.push({ observed_at: iso(o.observed_at), values: o.values });\n  }\n  const src = statusBySource[def.source_id];\n  const features = [...byFeature.values()];\n  let status = src?.status ?? 'error';\n  if (status === 'ok' && features.length === 0) status = 'ok_empty';\n  layers[layerId] = {\n    id: layerId, label: def.label, kind: def.kind, source_id: def.source_id,\n    status, last_updated: src?.last_success_at ?? iso(now), features,\n  };\n}\n\nconst snapshot = {\n  contract: 'layer-snapshot',\n  contract_version: '1.0.0',\n  snapshot_id: `live-rosario-${iso(now)}`,\n  generated_at: iso(now),\n  mode: 'live',\n  region: {\n    name: 'Rosario / Gran Rosario / Paraná corridor / Villa Constitución',\n    bbox: [-60.95, -33.35, -60.20, -32.55],\n  },\n  time_range: {\n    start: iso(new Date(now - 24 * 3600 * 1000)),\n    end: iso(now),\n    step_minutes: 60,\n  },\n  layers,\n  source_status: sourceStatus,\n};\nreturn [{ json: { snapshot } }];"
+      }
+    },
+    {
+      "id": "pg-store",
+      "name": "Store snapshot",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [700, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO digital_twin.layer_snapshots (snapshot_id, contract_version, mode, generated_at, time_start, time_end, payload)\nVALUES ($1, $2, 'live', $3::timestamptz, $4::timestamptz, $5::timestamptz, $6::jsonb)\nON CONFLICT (snapshot_id) DO UPDATE SET payload = EXCLUDED.payload;",
+        "options": {
+          "queryReplacement": "={{ $json.snapshot.snapshot_id }},{{ $json.snapshot.contract_version }},{{ $json.snapshot.generated_at }},{{ $json.snapshot.time_range.start }},{{ $json.snapshot.time_range.end }},{{ JSON.stringify($json.snapshot) }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    }
+  ],
+  "connections": {
+    "Every 30 minutes": { "main": [[{ "node": "Read sources + observations", "type": "main", "index": 0 }]] },
+    "Read sources + observations": { "main": [[{ "node": "Build snapshot document", "type": "main", "index": 0 }]] },
+    "Build snapshot document": { "main": [[{ "node": "Store snapshot", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

@@ -1,0 +1,215 @@
+:root {
+  --bg: #0e1320;
+  --panel: #161d2e;
+  --panel-edge: #232d45;
+  --text: #e6ecf7;
+  --muted: #8b97ad;
+  --accent: #5cc8ff;
+  --ok: #3ecf8e;
+  --ok-empty: #7fa6c4;
+  --stale: #f0b429;
+  --error: #f25f5c;
+  --fixture: #b58cff;
+  font-size: 15px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ----- mode banner ----- */
+.mode-banner {
+  padding: 6px 16px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+}
+.mode-banner.fixture { background: #3a2a63; color: #d9c8ff; }
+.mode-banner.live { background: #123a2a; color: #aef0d2; }
+
+/* ----- top bar ----- */
+.topbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--panel-edge);
+}
+.brand-title { font-size: 1.15rem; font-weight: 700; margin-right: 10px; }
+.brand-sub { color: var(--muted); font-size: 0.8rem; }
+.topbar-meta { color: var(--muted); font-size: 0.78rem; text-align: right; }
+
+/* ----- layout ----- */
+.layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 280px 1fr 300px;
+  min-height: 0;
+}
+
+.panel {
+  background: var(--panel);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.sidebar-left { border-right: 1px solid var(--panel-edge); }
+.sidebar-right { border-left: 1px solid var(--panel-edge); }
+
+.panel-block { padding: 12px 14px; border-bottom: 1px solid var(--panel-edge); }
+.panel-block.grow { flex: 1; }
+.panel-block h2 {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+/* ----- layer toggles ----- */
+.layer-list, .source-list { list-style: none; margin: 0; padding: 0; }
+.layer-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: 6px;
+}
+.layer-item:hover { background: rgba(255, 255, 255, 0.04); }
+.layer-item label { flex: 1; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.layer-swatch { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.layer-name { flex: 1; }
+.layer-count { color: var(--muted); font-size: 0.78rem; }
+
+/* ----- badges ----- */
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 9px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.badge.ok { background: rgba(62, 207, 142, 0.16); color: var(--ok); }
+.badge.ok_empty { background: rgba(127, 166, 196, 0.16); color: var(--ok-empty); }
+.badge.stale { background: rgba(240, 180, 41, 0.16); color: var(--stale); }
+.badge.error { background: rgba(242, 95, 92, 0.16); color: var(--error); }
+.badge.disabled { background: rgba(139, 151, 173, 0.16); color: var(--muted); }
+.badge.fixture { background: rgba(181, 140, 255, 0.16); color: var(--fixture); }
+
+/* ----- source status ----- */
+.source-item {
+  padding: 8px 4px;
+  border-bottom: 1px dashed var(--panel-edge);
+  font-size: 0.82rem;
+}
+.source-item:last-child { border-bottom: none; }
+.source-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.source-name { font-weight: 600; }
+.source-meta { color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
+.source-error { color: var(--error); font-size: 0.75rem; margin-top: 2px; }
+
+/* ----- map ----- */
+.map-wrap { position: relative; min-width: 0; min-height: 0; background: #0a0f1a; }
+#map { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+.map-attribution {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  font-size: 0.68rem;
+  color: var(--muted);
+  background: rgba(10, 15, 26, 0.7);
+  padding: 2px 8px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+.map-empty-notes {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+.empty-note {
+  background: rgba(22, 29, 46, 0.92);
+  border: 1px solid var(--panel-edge);
+  border-left: 3px solid var(--ok-empty);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.empty-note.error { border-left-color: var(--error); }
+.empty-note.stale { border-left-color: var(--stale); }
+
+.load-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: rgba(10, 15, 26, 0.95);
+  color: var(--text);
+  font-size: 0.95rem;
+  text-align: center;
+  white-space: pre-line;
+}
+
+/* ----- inspector ----- */
+.inspector { font-size: 0.85rem; }
+.inspector h3 { margin: 0 0 2px; font-size: 1rem; }
+.inspector .muted { color: var(--muted); }
+.inspector dl { margin: 10px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
+.inspector dt { color: var(--muted); }
+.inspector dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.inspector .obs-time { margin-top: 10px; font-size: 0.75rem; color: var(--muted); }
+
+/* ----- time bar ----- */
+.timebar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-top: 1px solid var(--panel-edge);
+}
+.play-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--panel-edge);
+  background: var(--bg);
+  color: var(--accent);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.play-btn:hover { border-color: var(--accent); }
+#time-slider { flex: 1; accent-color: var(--accent); }
+.time-readout { display: flex; flex-direction: column; min-width: 200px; text-align: right; }
+#time-label { font-weight: 700; font-variant-numeric: tabular-nums; }
+.time-readout .muted { color: var(--muted); font-size: 0.72rem; }
+
+.muted { color: var(--muted); }
+
+@media (max-width: 980px) {
+  .layout { grid-template-columns: 230px 1fr; }
+  .sidebar-right { display: none; }
+}

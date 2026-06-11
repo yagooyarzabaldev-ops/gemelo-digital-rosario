@@ -19,6 +19,10 @@ Public, static, fixture-only demo (no backend, no secrets, no real data, no live
 Served via GitHub Pages from the repository root. The fixture-mode / demo banners stay visible
 throughout — everything you see is deterministic sample data.
 
+**Commercial pitch package** (for municipalities, ports, industry, sponsors and institutional
+partners): see [docs/pitch/](docs/pitch/) — one-pager, demo script, positioning by segment,
+roadmap and risk/privacy notes.
+
 ## Quick start (fixture mode)
 
 Requires Node.js (any recent version; no npm packages needed).

@@ -42,9 +42,20 @@ Guardrails baked into the design:
    - **Supresión** — *Eliminar mis datos*: erases the displayed profile from the session, keeping
      a minimal non-identifying audit entry.
 
+## Public-data enrichment (v1.1)
+
+The verified profile can be enriched with **public data associated with the subject's OWN
+DNI/CUIL**, only when the subject consents. Same guardrails: self-only, consent-covered,
+mock/synthetic in demo (no real query to AFIP/padrón/Boletín Oficial), each source exposing
+status + freshness, an explicit "sin registros" (`ok_empty`) state, and coverage by the ARCO
+flows (export includes it, erasure removes it). Stored in `identity.enrichment_records`.
+
+It is **not** a third-party lookup: enrichment only exists for a consented self-verification.
+
 ## Deliverables
 
-- Contract: `contracts/identity-verification.schema.json` + `docs/identity-verification-contract.md`
+- Contract: `contracts/identity-verification.schema.json` (v1.1.0, optional `enrichment`) + `docs/identity-verification-contract.md`
+- Enrichment: `db/migrations/003_identity_enrichment.sql`, `n8n/workflows/identity-enrich-public-sources.template.json`
 - Fixture: `data/fixtures/identity-verification.sample.json` (synthetic test subject)
 - DB: `db/migrations/002_identity_verification_schema.sql` (`identity` schema; audit actions include
   `data_exported` and `rectification_requested`)

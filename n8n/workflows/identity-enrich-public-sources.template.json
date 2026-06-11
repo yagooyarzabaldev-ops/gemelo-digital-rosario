@@ -1,0 +1,124 @@
+{
+  "name": "[TEMPLATE] Identity — enrich OWN profile with public data (consented)",
+  "meta": {
+    "templateNote": "Template/spec only. Enriches the SUBJECT'S OWN profile with public data keyed by their own DNI/CUIL, only when consented. NOT a third-party lookup. No credentials or secrets. Live source nodes are disabled placeholders; without them the flow returns synthetic mock enrichment.",
+    "writesTo": ["identity.enrichment_records", "identity.audit_log"],
+    "reads": "Input is the result of a consented self-verification (subject_ref, cuil, verification_id, consent.enrichment=true).",
+    "legalNotes": [
+      "Only runs for a self-verified subject who consented to enrichment.",
+      "subject_ref is the salted hash from the verification step; the raw DNI is never used as a key.",
+      "Live mode against AFIP / padrón / Boletín Oficial requires authorized integration and legal review. Never commit credentials."
+    ]
+  },
+  "nodes": [
+    {
+      "id": "note-1",
+      "name": "How this template works",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, -320],
+      "parameters": {
+        "content": "TEMPLATE — consented self-enrichment\n\nInput (from the verification step): { subject_ref, cuil, documento_numero, verification_id, consent: { enrichment: true } }\n\n1. Consent gate: requires consent.enrichment === true. No consent → no enrichment.\n2. Provider branch per source:\n   - live: call the authorized public source with YOUR credential (disabled placeholder nodes).\n   - mock: build synthetic records for the configured test subject only.\n3. Each source carries status + freshness (ok / ok_empty / stale / error / mock).\n4. Upsert into identity.enrichment_records (unique per verification + source) with a mandatory retention_until, and audit 'enrichment_fetched'.\n5. Return an `enrichment` block matching contracts/identity-verification.schema.json (1.1.0).\n\nThis enriches the requester's OWN profile only. It must not be repurposed to look up third parties."
+      }
+    },
+    {
+      "id": "trigger-1",
+      "name": "When called by verification",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": {}
+    },
+    {
+      "id": "code-consent-gate",
+      "name": "Enrichment consent gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "jsCode": "// Only enrich the subject's OWN profile, and only with explicit enrichment consent.\nconst input = $json;\nif (!input.consent || input.consent.enrichment !== true) {\n  throw new Error('Enrichment requires explicit consent (consent.enrichment = true).');\n}\nif (!input.subject_ref || !input.verification_id) {\n  throw new Error('Enrichment requires a prior consented self-verification (subject_ref, verification_id).');\n}\nreturn [{ json: { ...input, mode: $env.IDENTITY_MODE === 'live' ? 'live' : 'mock' } }];"
+      }
+    },
+    {
+      "id": "if-live",
+      "name": "Live enrichment?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [
+            { "leftValue": "={{ $json.mode }}", "rightValue": "live", "operator": { "type": "string", "operation": "equals" } }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "http-afip",
+      "name": "AFIP padrón (live — attach credential)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, -140],
+      "disabled": true,
+      "notes": "DISABLED. Enable only with an authorized integration + legal review. Endpoint/auth are placeholders; configure via an n8n credential, never inline.",
+      "parameters": {
+        "url": "https://REPLACE_WITH_AUTHORIZED_AFIP_ENDPOINT/padron",
+        "options": { "timeout": 20000 }
+      }
+    },
+    {
+      "id": "code-mock",
+      "name": "Mock enrichment (synthetic)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 120],
+      "parameters": {
+        "jsCode": "// Synthetic enrichment for the configured test subject ONLY. Any other subject\n// gets empty sources, so the demo cannot enrich real people.\nconst now = new Date().toISOString().replace(/\\.\\d{3}Z$/, 'Z');\nconst input = $('Enrichment consent gate').item.json;\nconst isTest = input.documento_numero === '30123456';\nconst sources = isTest ? [\n  { source_id: 'afip-padron', name: 'AFIP — Constancia de inscripción (CUIL/CUIT)', category: 'fiscal',\n    url: 'https://www.afip.gob.ar/', status: 'mock', mode: 'mock', last_success_at: now, last_error: null,\n    records: [ { label: 'Condición', value: 'Monotributo', detail: 'Categoría B' },\n               { label: 'Estado', value: 'Activo' } ] },\n  { source_id: 'padron-electoral', name: 'Padrón electoral (lugar de votación)', category: 'electoral',\n    url: 'https://www.padron.gob.ar/', status: 'mock', mode: 'mock', last_success_at: now, last_error: null,\n    records: [ { label: 'Establecimiento', value: 'Escuela N° 123 «Demo»', detail: 'Rosario' },\n               { label: 'Mesa', value: '4567' } ] },\n  { source_id: 'rdam-santafe', name: 'Registro de Deudores Alimentarios Morosos (Santa Fe)', category: 'registro',\n    url: null, status: 'ok_empty', mode: 'mock', last_success_at: now, last_error: null, records: [] },\n] : [];\nreturn [{ json: { enrichment: { consented: true, sources }, subject_ref: input.subject_ref,\n  verification_id: input.verification_id, mode: input.mode } }];"
+      }
+    },
+    {
+      "id": "pg-upsert",
+      "name": "Upsert enrichment + audit",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [900, 0],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH ins AS (\n  INSERT INTO identity.enrichment_records\n    (verification_id, subject_ref, source_id, source_name, category, status, mode, last_success_at, last_error, records, retention_until)\n  SELECT $1::bigint, $2, s->>'source_id', s->>'name', s->>'category', s->>'status', s->>'mode',\n         NULLIF(s->>'last_success_at','')::timestamptz, s->>'last_error', COALESCE(s->'records','[]'::jsonb),\n         now() + ($4 || ' days')::interval\n  FROM jsonb_array_elements($3::jsonb) AS s\n  ON CONFLICT (verification_id, source_id) DO UPDATE SET records = EXCLUDED.records, status = EXCLUDED.status\n  RETURNING 1\n)\nINSERT INTO identity.audit_log (subject_ref, action, actor, detail)\nVALUES ($2, 'enrichment_fetched', 'self', jsonb_build_object('sources', (SELECT count(*) FROM ins)));",
+        "options": {
+          "queryReplacement": "={{ $json.verification_id }},{{ $json.subject_ref }},{{ JSON.stringify($json.enrichment.sources) }},{{ $env.IDENTITY_RETENTION_DAYS || '180' }}"
+        }
+      },
+      "credentials": {
+        "postgres": { "id": "REPLACE_ME", "name": "REPLACE WITH YOUR LOCAL POSTGRES CREDENTIAL" }
+      }
+    },
+    {
+      "id": "code-respond",
+      "name": "Return enrichment block",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 0],
+      "parameters": {
+        "jsCode": "return [{ json: { enrichment: $json.enrichment } }];"
+      }
+    }
+  ],
+  "connections": {
+    "When called by verification": { "main": [[{ "node": "Enrichment consent gate", "type": "main", "index": 0 }]] },
+    "Enrichment consent gate": { "main": [[{ "node": "Live enrichment?", "type": "main", "index": 0 }]] },
+    "Live enrichment?": {
+      "main": [
+        [{ "node": "AFIP padrón (live — attach credential)", "type": "main", "index": 0 }],
+        [{ "node": "Mock enrichment (synthetic)", "type": "main", "index": 0 }]
+      ]
+    },
+    "AFIP padrón (live — attach credential)": { "main": [[{ "node": "Upsert enrichment + audit", "type": "main", "index": 0 }]] },
+    "Mock enrichment (synthetic)": { "main": [[{ "node": "Upsert enrichment + audit", "type": "main", "index": 0 }]] },
+    "Upsert enrichment + audit": { "main": [[{ "node": "Return enrichment block", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

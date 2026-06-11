@@ -73,6 +73,10 @@ twin (identity card, domicilio mini-map, governance panel, session audit trail).
 - Self-verification only — the subject is always the requester, behind a required consent gate.
 - In demo (`mock`) mode only one **synthetic** test identity resolves; any other document
   returns a clean "sin coincidencia" state, so it cannot profile real people.
+- With the subject's consent, the verified profile is enriched with **public data associated
+  with their OWN DNI/CUIL** (AFIP, padrón electoral, Boletín Oficial, registries) — synthetic and
+  mock in the demo, each source showing its own status/freshness, including a "sin registros"
+  empty state. Still self-only; never a third-party lookup.
 - A real deployment verifies server-side via n8n against an authorized provider (RENAPER under
   convenio); credentials never reach the browser and are never committed.
 - Data is minimized, retained for a bounded period, audited, and the titular can exercise ARCO

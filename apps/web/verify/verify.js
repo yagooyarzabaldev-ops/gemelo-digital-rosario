@@ -187,6 +187,11 @@ function renderResult(doc) {
     drawMiniMap(mapCard.querySelector("canvas"), dom.lon, dom.lat);
   }
 
+  // Public-data enrichment of the subject's OWN profile (only if consented).
+  if (doc.enrichment?.consented && Array.isArray(doc.enrichment.sources) && doc.enrichment.sources.length) {
+    renderEnrichment(host, doc.enrichment);
+  }
+
   const g = doc.governance;
   host.appendChild(el(`
     <div class="gov-card">
@@ -221,6 +226,42 @@ function renderResult(doc) {
   $("revoke-btn").addEventListener("click", revokeConsent);
   $("erase-btn").addEventListener("click", eraseData);
   $("restart-btn").addEventListener("click", restart);
+}
+
+// Renders public-data enrichment of the titular's OWN profile. Each source
+// shows its freshness/status and is clearly labeled mock/synthetic.
+function renderEnrichment(host, enr) {
+  const wrap = el(`
+    <div class="enrich">
+      <h3 class="rights-title">Datos públicos asociados a tu DNI/CUIL <span class="enrich-tag">demo · sintético</span></h3>
+      <p class="enrich-lead">Consultado <strong>con tu consentimiento</strong>, sobre tu propio documento.
+      En este demo <strong>no se consulta ninguna base real</strong>: cada fuente es un proveedor simulado.</p>
+      <div class="enrich-grid"></div>
+    </div>`);
+  const grid = wrap.querySelector(".enrich-grid");
+  for (const s of enr.sources) {
+    const fresh = s.last_success_at ? `actualizado ${fmtDate(s.last_success_at)}` : "sin frescura";
+    let body;
+    if (s.status === "ok_empty" || !s.records.length) {
+      body = `<div class="enrich-empty">Sin registros — estado válido.</div>`;
+    } else {
+      body = `<dl class="enrich-records">` + s.records.map((r) =>
+        `<div class="enrich-row"><dt>${esc(r.label)}</dt>` +
+        `<dd>${esc(r.value)}${r.detail ? ` <span class="enrich-detail">${esc(r.detail)}</span>` : ""}</dd></div>`
+      ).join("") + `</dl>`;
+    }
+    grid.appendChild(el(`
+      <div class="enrich-card s-${esc(s.status)}">
+        <div class="enrich-head">
+          <span class="enrich-name">${esc(s.name)}</span>
+          <span class="badge ${esc(s.status)}">${esc(s.status.replace("_", " "))}</span>
+        </div>
+        <div class="enrich-meta">${esc(s.category)} · ${esc(fresh)} · <span class="badge ${esc(s.mode)}">${esc(s.mode)}</span></div>
+        ${body}
+        ${s.last_error ? `<div class="enrich-error">⚠ ${esc(s.last_error)}</div>` : ""}
+      </div>`));
+  }
+  host.appendChild(wrap);
 }
 
 function renderNotFound(host, doc) {
@@ -267,6 +308,7 @@ function exportData(doc) {
       requested_at: doc.consent.consented_at,
       completed_at: doc.verification.verified_at,
     },
+    enrichment: doc.enrichment ?? null,
     audit_events: session.audit,
     governance: doc.governance,
   };
@@ -376,6 +418,9 @@ function eraseData() {
   if (session.active) {
     session.active.subject = { erased: true, note: "Perfil eliminado por el titular (supresión)." };
     session.active.verification = { ...session.active.verification, status: "erased" };
+    if (session.active.enrichment) {
+      session.active.enrichment = { consented: false, erased: true, sources: [] };
+    }
   }
   const host = $("step-result");
   host.innerHTML = "";

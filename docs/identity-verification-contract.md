@@ -1,7 +1,7 @@
 # PersonaTwin — Identity Verification Contract
 
 Product: **PersonaTwin / Gemelo Personal Verificado**
-Version: **1.0.0**
+Version: **1.1.0**
 Schema: [`contracts/identity-verification.schema.json`](../contracts/identity-verification.schema.json)
 Sample: [`data/fixtures/identity-verification.sample.json`](../data/fixtures/identity-verification.sample.json)
 
@@ -62,6 +62,45 @@ period, auditable, and erasable.
 - **failed** → provider/transport error, with `verification.error` shown; never fabricated data.
 - **pending** → awaiting the provider.
 
+## Public-data enrichment (v1.1, optional)
+
+When the subject **consents to it**, the verified profile can be enriched with **public data
+associated with their OWN DNI/CUIL**. This is self-service only — never a third-party lookup.
+
+The optional `enrichment` block:
+
+```jsonc
+"enrichment": {
+  "consented": true,                 // only present/true if the subject consented
+  "sources": [
+    {
+      "source_id": "afip-padron",
+      "name": "AFIP — Constancia de inscripción (CUIL/CUIT)",
+      "category": "fiscal",          // fiscal | electoral | boletin_oficial | registro
+      "url": "https://www.afip.gob.ar/",
+      "status": "mock",              // ok | ok_empty | stale | error | mock
+      "mode": "mock",                // every source is mock in demo mode
+      "last_success_at": "…Z",
+      "last_error": null,
+      "records": [ { "label": "Condición", "value": "Monotributo", "detail": "Categoría B" } ]
+    }
+  ]
+}
+```
+
+Rules:
+
+- Present **only** with the subject's explicit enrichment consent (`consented: true`).
+- In `mock` mode every source is `mock` and **makes no real query** (enforced by the validator).
+- `status: "ok_empty"` with `records: []` is a valid "sin registros" state and must be rendered
+  explicitly — not hidden, not as an error.
+- Each source carries its own freshness and status, like the CityPulse source-freshness model.
+- Enrichment is covered by the same governance: it is included in the data export, removed on
+  erasure, and tied to a consent + retention boundary (`identity.enrichment_records`).
+
+Going live (real AFIP / padrón / Boletín Oficial queries) requires authorized integration and
+legal review, the same as PersonaTwin live in general.
+
 ## Data-subject rights flows (demo)
 
 The verified view exposes the titular's ARCO rights as distinct, synthetic, non-persistent
@@ -89,7 +128,8 @@ The result maps onto the `identity` schema from
 - `consent` → `identity.consent_records`
 - `verification` → `identity.verification_requests` (unique on `provider` + `request_key`, so retries are idempotent)
 - `subject` → `identity.identity_profiles.payload` (minimized; `retention_until` mandatory)
-- every action → `identity.audit_log`
+- `enrichment.sources[]` → `identity.enrichment_records` (unique per `verification_id` + `source_id`; cascade-deleted with the verification)
+- every action → `identity.audit_log` (incl. `enrichment_fetched`)
 
 The document number is stored as a salted hash (`subject_ref = sha256(numero || sexo || APP_SALT)`),
 not in the clear; the salt is an environment secret and is never committed.

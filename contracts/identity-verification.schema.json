@@ -142,6 +142,48 @@
         "retention_until": { "oneOf": [{ "$ref": "#/$defs/isoTimestamp" }, { "type": "null" }] },
         "stored_fields_minimized": { "type": "boolean" }
       }
+    },
+    "enrichment": {
+      "type": "object",
+      "description": "Public-data enrichment of the subject's OWN profile, keyed by their own DNI/CUIL, included ONLY when the subject explicitly consented to it. Self-service only — never a third-party lookup. In mock mode every source is simulated/synthetic and makes no real query.",
+      "required": ["consented", "sources"],
+      "properties": {
+        "consented": { "type": "boolean", "description": "True only if the subject consented to public-data enrichment." },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source_id", "name", "category", "status", "mode", "last_success_at", "last_error", "records"],
+            "properties": {
+              "source_id": { "type": "string", "minLength": 1 },
+              "name": { "type": "string", "minLength": 1 },
+              "category": { "type": "string", "description": "e.g. fiscal, electoral, boletin_oficial, registro." },
+              "url": { "type": ["string", "null"] },
+              "status": {
+                "enum": ["ok", "ok_empty", "stale", "error", "mock"],
+                "description": "ok_empty = source answered and there is genuinely no record (a valid state, e.g. 'sin registros')."
+              },
+              "mode": { "enum": ["mock", "live"] },
+              "last_success_at": { "oneOf": [{ "$ref": "#/$defs/isoTimestamp" }, { "type": "null" }] },
+              "last_error": { "type": ["string", "null"] },
+              "note": { "type": "string" },
+              "records": {
+                "type": "array",
+                "description": "Public records found for the subject at this source. Empty when status is ok_empty.",
+                "items": {
+                  "type": "object",
+                  "required": ["label", "value"],
+                  "properties": {
+                    "label": { "type": "string", "minLength": 1 },
+                    "value": { "type": "string" },
+                    "detail": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "allOf": [

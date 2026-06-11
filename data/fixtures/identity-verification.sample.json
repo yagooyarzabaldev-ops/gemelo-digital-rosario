@@ -1,6 +1,6 @@
 {
   "contract": "identity-verification",
-  "contract_version": "1.0.0",
+  "contract_version": "1.1.0",
   "request_id": "demo-verif-30123456",
   "generated_at": "2026-06-10T12:00:00Z",
   "mode": "mock",
@@ -12,9 +12,9 @@
   "consent": {
     "granted": true,
     "subject_confirmed_owner": true,
-    "purpose": "Autoverificación de identidad solicitada por el propio titular.",
+    "purpose": "Autoverificación de identidad y enriquecimiento con datos públicos asociados al propio DNI/CUIL, solicitado por el propio titular.",
     "legal_basis": "Consentimiento libre, expreso e informado del titular (Ley 25.326, arts. 5 y 6).",
-    "terms_version": "2026-06-01",
+    "terms_version": "2026-06-08",
     "consented_at": "2026-06-10T12:00:00Z",
     "expires_at": "2026-12-10T12:00:00Z"
   },
@@ -70,5 +70,68 @@
     "rights_contact": "privacidad@example.org",
     "retention_until": "2026-12-10T12:00:00Z",
     "stored_fields_minimized": true
+  },
+  "enrichment": {
+    "consented": true,
+    "sources": [
+      {
+        "source_id": "afip-padron",
+        "name": "AFIP — Constancia de inscripción (CUIL/CUIT)",
+        "category": "fiscal",
+        "url": "https://www.afip.gob.ar/",
+        "status": "mock",
+        "mode": "mock",
+        "last_success_at": "2026-06-10T11:55:00Z",
+        "last_error": null,
+        "note": "Proveedor simulado. En modo live requiere integración autorizada; no se consulta AFIP real.",
+        "records": [
+          { "label": "Condición", "value": "Monotributo", "detail": "Categoría B" },
+          { "label": "Actividad declarada", "value": "Servicios de programación informática", "detail": "Alta 2015" },
+          { "label": "Estado", "value": "Activo" }
+        ]
+      },
+      {
+        "source_id": "padron-electoral",
+        "name": "Padrón electoral (lugar de votación)",
+        "category": "electoral",
+        "url": "https://www.padron.gob.ar/",
+        "status": "mock",
+        "mode": "mock",
+        "last_success_at": "2026-06-09T18:00:00Z",
+        "last_error": null,
+        "note": "Proveedor simulado. Dato público de establecimiento de votación, asociado al propio DNI.",
+        "records": [
+          { "label": "Establecimiento", "value": "Escuela N° 123 «Demo»", "detail": "Rosario, Santa Fe" },
+          { "label": "Mesa", "value": "4567" },
+          { "label": "Orden", "value": "210" }
+        ]
+      },
+      {
+        "source_id": "boletin-oficial",
+        "name": "Boletín Oficial (publicaciones asociadas)",
+        "category": "boletin_oficial",
+        "url": "https://www.boletinoficial.gob.ar/",
+        "status": "stale",
+        "mode": "mock",
+        "last_success_at": "2026-05-20T09:00:00Z",
+        "last_error": "Última consulta simulada fuera de la ventana de frescura (demo).",
+        "note": "Proveedor simulado. Demuestra el estado 'vencido': el último resultado conocido es más viejo que la ventana configurada.",
+        "records": [
+          { "label": "Publicación", "value": "Constitución de SAS «Demo Software»", "detail": "2021-03-11 · socia fundadora" }
+        ]
+      },
+      {
+        "source_id": "rdam-santafe",
+        "name": "Registro de Deudores Alimentarios Morosos (Santa Fe)",
+        "category": "registro",
+        "url": null,
+        "status": "ok_empty",
+        "mode": "mock",
+        "last_success_at": "2026-06-10T11:50:00Z",
+        "last_error": null,
+        "note": "Proveedor simulado. Sin coincidencias: un resultado vacío es un estado válido y se muestra explícitamente.",
+        "records": []
+      }
+    ]
   }
 }

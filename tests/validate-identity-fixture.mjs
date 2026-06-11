@@ -119,6 +119,33 @@ check(typeof g.rights_contact === "string" && g.rights_contact.length > 0, "gove
 check(g.retention_until === undefined || isIsoOrNull(g.retention_until),
   "governance.retention_until must be ISO or null");
 
+/* ---- enrichment (optional; public-data of the subject's OWN id) ---- */
+const ENRICH_STATUSES = ["ok", "ok_empty", "stale", "error", "mock"];
+let enrichCount = 0;
+if (doc.enrichment !== undefined) {
+  const e = doc.enrichment;
+  check(e.consented === true, "enrichment requires consented=true (self-service, consent-covered)");
+  check(Array.isArray(e.sources), "enrichment.sources must be an array");
+  for (const [i, s] of (e.sources ?? []).entries()) {
+    const at = `enrichment.sources[${i}] (${s?.source_id ?? "?"})`;
+    check(typeof s.source_id === "string" && s.source_id.length > 0, `${at}: source_id required`);
+    check(typeof s.name === "string" && s.name.length > 0, `${at}: name required`);
+    check(typeof s.category === "string" && s.category.length > 0, `${at}: category required`);
+    check(ENRICH_STATUSES.includes(s.status), `${at}: status must be one of ${ENRICH_STATUSES.join("|")}`);
+    check(["mock", "live"].includes(s.mode), `${at}: mode must be mock|live`);
+    if (doc.mode === "mock") check(s.mode === "mock", `${at}: in mock mode every enrichment source must be mock (no real query)`);
+    check(isIsoOrNull(s.last_success_at), `${at}: last_success_at must be ISO or null`);
+    check(s.last_error === null || typeof s.last_error === "string", `${at}: last_error must be string or null`);
+    check(Array.isArray(s.records), `${at}: records must be an array`);
+    if (s.status === "ok_empty") check(s.records.length === 0, `${at}: ok_empty sources must have zero records`);
+    for (const [ri, r] of (s.records ?? []).entries()) {
+      check(typeof r.label === "string" && r.label.length > 0, `${at}.records[${ri}]: label required`);
+      check(typeof r.value === "string", `${at}.records[${ri}]: value must be a string`);
+    }
+    enrichCount++;
+  }
+}
+
 /* ---- result ---- */
 if (errors.length) {
   console.error(`FAIL: ${target}`);
@@ -130,3 +157,6 @@ console.log(`OK: ${target}`);
 console.log(`  contract v${doc.contract_version}, mode=${doc.mode}`);
 console.log(`  verification: ${v.status} via ${v.provider}`);
 console.log(`  consent: granted=${c.granted}, owner=${c.subject_confirmed_owner}, basis="${c.legal_basis}"`);
+if (doc.enrichment !== undefined) {
+  console.log(`  enrichment: consented=${doc.enrichment.consented}, sources=${enrichCount} (${(doc.enrichment.sources ?? []).map((s) => `${s.source_id}:${s.status}`).join(", ")})`);
+}
